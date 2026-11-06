@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# oomfit
 
-## Getting Started
+**oomfit** is a modern, SFW (Safe For Work), non-hateful imageboard inspired by classic imageboards (4chan), reimagined with an **account-based community model** and **user-created boards** (similar to subreddits).
 
-First, run the development server:
+---
+
+## 🌟 Project Vision
+
+- **Imageboard Speed & Density:** The beloved, fast, dense visual browsing experience of an imageboard (catalog view, fast image expansion, direct thread quoting).
+- **SFW & Wholesome Culture:** Strict focus on constructive community topics (fitness, wellness, nutrition, routines, lifestyle) without hateful content.
+- **Account-Based Identity:** Real user accounts and avatars replacing raw anonymous number feeds, while preserving imageboard brevity and conversational flow.
+- **Custom Boards (Like Subreddits):** Users will be able to create, curate, and moderate their own niche boards.
+
+> **Note on Current Stage (Heavy Placeholders):**  
+> The project is currently in the frontend architecture and UI prototype phase. The catalog (150 threads), user accounts, avatars, image attachments, aspect ratios, and reply chains are powered by structured mock data generators in `src/lib/data.ts`. Backend persistence, auth, and database models will be connected in subsequent phases.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework:** [Next.js](https://nextjs.org/) 16 (App Router, Turbopack, Partial Prerendering)
+- **UI Library:** [React](https://react.dev/) 19 (Hooks, `Suspense`, `use()` async unwrap)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/) v4 (`@import "tailwindcss"`)
+- **Language:** TypeScript 5
+- **Icons:** [Lucide React](https://lucide.dev/) + Custom SVG brand marks
+
+---
+
+## 🚀 Quickstart for Agents & Developers
+
+### 1. Install & Run Dev Server
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application runs locally on **[http://localhost:3000](http://localhost:3000)**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Verify Production Build & Typecheck
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+Always run `npm run build` to verify type safety and catch Next.js SSR/prerender boundaries.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📂 Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+oomfit/
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx         # Root HTML layout & fonts
+│   │   ├── globals.css        # Global Tailwind v4 styles
+│   │   ├── page.tsx           # Catalog view (Board /fit/ catalog)
+│   │   └── thread/
+│   │       └── [id]/
+│   │           └── page.tsx   # Thread view (4chan X style inlining)
+│   └── lib/
+│       └── data.ts            # Mock dataset, user accounts & thread generator
+├── catalog.md                 # Detailed documentation of the Catalog system
+├── thread.md                  # Detailed documentation of the Thread system
+├── package.json
+├── tsconfig.json
+└── README.md
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🤖 Onboarding Notes for Fresh Agents
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Next.js 16 App Router Dynamic Route Conventions:**
+   - In Next.js 16, route parameters (`params`) in client components must be unwrapped using React's `use(params)` inside a `<Suspense>` boundary. Never read raw route hooks outside of suspense.
+2. **Stable Component Identity for Inlining:**
+   - On the thread page, `<PostCard>` is declared at the module level (outside `ThreadContent`). This is critical: if declared inside the parent component, hover preview updates cause component remounts, wiping out inlined cards.
+3. **Available Themes:**
+   - **Twitter (Default):** Classic pre-X palette (`#E6ECF0` canvas, `#FFFFFF` cards, `#1DA1F2` blue accents, rounded pill buttons).
+   - **Classic:** Authentic Yotsuba beige imageboard palette (`#FFFFEE` canvas, `#F0E0D6` bars, maroon `#800000`, navy `#0F0C5D`).
+   - **Light:** Clean modern slate palette.
+
+---
+
+## 📖 Feature Documentation
+
+For in-depth explanations of specific subsystems, consult the dedicated guides:
+
+- 📋 [**Catalog Documentation (catalog.md)**](./catalog.md) — Grid reflow, zoom tolerance (67% - 150%), realistic aspect ratios, and live filtering.
+- 💬 [**Thread Documentation (thread.md)**](./thread.md) — 4chan X quote hover previews, recursive inlining above image/text, replier avatar rows, and layout rules.
