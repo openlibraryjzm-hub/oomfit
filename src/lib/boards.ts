@@ -999,10 +999,21 @@ export const boardsMap = new Map<string, Board>(
 );
 
 // Fallback board helper
-export function getBoard(codeOrId?: string | null): Board {
+export function getBoard(codeOrId?: string | null, extraBoards: Board[] = []): Board {
   if (!codeOrId) return allBoards.find((b) => b.shortcode === "mc") || allBoards[0];
   const query = codeOrId.toLowerCase().replace(/^\/+|\/+$/g, "").trim();
-  return (
+
+  // Check extra/custom boards first
+  const custom = extraBoards.find(
+    (b) =>
+      b.id.toLowerCase() === query ||
+      b.shortcode.toLowerCase() === query ||
+      b.name.toLowerCase() === query
+  );
+  if (custom) return custom;
+
+  // Check static boards
+  const found =
     boardsMap.get(query) ||
     allBoards.find(
       (b) =>
@@ -1010,10 +1021,20 @@ export function getBoard(codeOrId?: string | null): Board {
         b.shortcode.toLowerCase() === query ||
         b.name.toLowerCase() === query ||
         b.name.toLowerCase().replace(/\s+/g, "") === query
-    ) ||
-    allBoards.find((b) => b.shortcode === "mc") ||
-    allBoards[0]
-  );
+    );
+
+  if (found) return found;
+
+  // If board is custom / not in static list, dynamically synthesize it
+  return {
+    id: query,
+    shortcode: query,
+    name: query.toUpperCase(),
+    domain: "Community",
+    subCategory: "Custom Board",
+    description: `Discussions, media and threads for /${query}/`,
+    tags: [query, "custom"],
+  };
 }
 
 // ==========================================
@@ -1349,13 +1370,25 @@ function levenshteinDistance(a: string, b: string): number {
 // ==========================================
 // 🔍 SOLUTION 1 & 3: LINGUISTIC SPECIFICITY SCORING (NO FAKE CATEGORIES)
 // ==========================================
-export function searchGenericBoards(query: string): Board[] {
+export function searchGenericBoards(query: string, extraBoards: Board[] = []): Board[] {
   const q = query.trim().toLowerCase();
-  if (!q) return allBoards;
+  
+  // Deduplicate pool
+  const seen = new Set<string>();
+  const pool: Board[] = [];
+  for (const b of [...extraBoards, ...allBoards]) {
+    const code = b.shortcode.toLowerCase();
+    if (!seen.has(code)) {
+      seen.add(code);
+      pool.push(b);
+    }
+  }
+
+  if (!q) return pool;
 
   const scoredBoards: { board: Board; score: number }[] = [];
 
-  for (const board of allBoards) {
+  for (const board of pool) {
     let score = 0;
     const nameLower = board.name.toLowerCase();
     const codeLower = board.shortcode.toLowerCase();
@@ -1392,7 +1425,7 @@ export function searchGenericBoards(query: string): Board[] {
 
     // 4. DOMAIN MATCH (e.g. searching "gaming", "music", "art")
     if (board.domain.toLowerCase() === q) score += 55;
-    if (board.subCategory.toLowerCase() === q) score += 40;
+    if (board.subCategory && board.subCategory.toLowerCase() === q) score += 40;
 
     // 5. TYPO TOLERANCE (Levenshtein Distance)
     for (const word of wordsInName.concat(codeLower)) {
@@ -1418,8 +1451,8 @@ export function searchGenericBoards(query: string): Board[] {
 // ==========================================
 // 🏛️ REMEDY 1: DOMAIN-LEVEL CLUSTERING FOR GENERIC SEARCH
 // ==========================================
-export function searchGenericCategories(query: string): PresetCategory[] {
-  const topMatched = searchGenericBoards(query);
+export function searchGenericCategories(query: string, extraBoards: Board[] = []): PresetCategory[] {
+  const topMatched = searchGenericBoards(query, extraBoards);
   if (topMatched.length === 0) {
     return [];
   }
@@ -1516,17 +1549,25 @@ export interface DualSearchResult {
 
 export function executeDualSearch(
   rawQuery: string,
-  fallbackPresetId: string = "default"
+  fallbackPresetId: string = "default",
+  extraBoards: Board[] = []
 ): DualSearchResult {
   const q = rawQuery.trim();
 
-  // If query is empty, return currently selected preset
+  // If query is empty, return currently selected preset (plus custom boards if applicable)
   if (!q) {
     const defaultP = presets.find((p) => p.id === fallbackPresetId) || presets[0];
+    const categories = resolvePreset(defaultP.id);
+    if (extraBoards.length > 0 && defaultP.id === "default") {
+      categories.push({
+        name: "COMMUNITY BOARDS",
+        boards: extraBoards,
+      });
+    }
     return {
       mode: "preset",
       matchedPreset: defaultP,
-      categories: resolvePreset(defaultP.id),
+      categories,
       query: "",
     };
   }
@@ -1599,7 +1640,7 @@ export function executeDualSearch(
   }
 
   // 2. DUAL SEARCH: No "/" -> Generic search with Remedy 1 Domain-Level Category Clustering!
-  const genericCategories = searchGenericCategories(q);
+  const genericCategories = searchGenericCategories(q, extraBoards);
   return {
     mode: "generic",
     categories: genericCategories,

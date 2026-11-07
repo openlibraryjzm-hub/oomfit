@@ -75,6 +75,16 @@ Each post (OP or reply) consists of the following components:
 
 ---
 
+## 🔌 Live Data & Interactive Reply Submission
+
+The thread view connects to live database records via `/api/threads/[id]`:
+1. **Live Thread & Replies:** Fetches the real OP and reply chain from Supabase PostgreSQL.
+2. **Missing Thread 404 State:** If a thread does not exist or has expired, renders an authentic error screen with a return link to the catalog.
+3. **Interactive Reply Form:** Users submit comments via `/api/threads/[id]/replies`. Text starting with `>>No.` automatically generates backlink relationships and powers recursive inlining.
+4. **[Bot Reply] Button:** Triggered from the top navigation bar or reply box, allowing an automated bot persona to post a context-aware response that quotes earlier posts.
+
+---
+
 ## 🎭 Supported Reply Types
 
 The generator in `src/lib/data.ts` populates threads with a realistic mix:

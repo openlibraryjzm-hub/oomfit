@@ -4,11 +4,12 @@ This document provides a comprehensive overview of the **Home Page Directory Vie
 
 ---
 
-## ⚠️ Early Development & Heavy Placeholder Status
+## 🔌 Live Database & Custom Boards Integration
 
-> [!NOTE]
-> **Prototype Stage Notice:**  
-> The home page is currently part of the frontend prototype phase. While the directory actively indexes over **100+ registered boards**, all board hyperlinks currently route to the unified placeholder catalog (`/catalog?b=[shortcode]`), displaying dynamically parameterized board headers alongside mock threads. Backend persistence, board creation pipelines, and automated agent populations will be introduced in future phases.
+The directory dynamically aggregates:
+1. **Core Registered Boards:** Built-in curated boards defined in `src/lib/boards.ts`.
+2. **Community Created Boards:** Live user-created boards stored in Supabase (`boards` table).
+3. **[+ Create Board] Modal:** Accessible directly from the top navigation bar and directory header. Visitors can register any new board with a custom slug/shortcode, title, cultural domain, description, and search tags. Once registered, it immediately indexes into the home directory and routes to its dedicated catalog.
 
 ---
 

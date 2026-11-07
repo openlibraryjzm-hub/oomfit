@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, use, Suspense, useRef } from "react";
+import React, { useState, useMemo, use, Suspense, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -14,6 +14,8 @@ import {
   Maximize2,
   Minimize2,
   X,
+  Bot,
+  RefreshCw,
 } from "lucide-react";
 
 function TwitterIcon({ className = "h-4 w-4" }: { className?: string }) {
@@ -23,7 +25,9 @@ function TwitterIcon({ className = "h-4 w-4" }: { className?: string }) {
     </svg>
   );
 }
-import { getThreadData, UserProfile } from "@/lib/data";
+
+import { UserProfile } from "@/lib/data";
+import { fetchThread, postReply, triggerBot, Thread, ThreadReply } from "@/lib/client-api";
 
 type ThemeMode = "classic" | "twitter" | "light";
 
@@ -79,16 +83,16 @@ interface PostCardProps {
   ancestorChain?: number[];
   themeStyles: ThemeStyles;
   postsMap: Map<number, UnifiedPost>;
-  getBacklinks: (postNumber: number) => Array<{ postNumber: number }>;
+  getBacklinks: (postNumber: number) => ThreadReply[];
   expandedImages: Record<number, boolean>;
-  toggleImageExpand: (imgId: number) => void;
+  toggleImageExpand: (id: number) => void;
   handlePostNumberClick: (postNumber: number) => void;
   handleQuoteMouseEnter: (postNumber: number, e: React.MouseEvent) => void;
   handleQuoteMouseLeave: () => void;
   dismissHover: () => void;
 }
 
-// Module-level PostCard component to guarantee stable component identity
+// STABLE MODULE-LEVEL POSTCARD COMPONENT
 function PostCard({
   post,
   isInlined = false,
@@ -104,140 +108,120 @@ function PostCard({
   handleQuoteMouseLeave,
   dismissHover,
 }: PostCardProps) {
-  // Inlined post numbers inside this card
   const [inlinedPosts, setInlinedPosts] = useState<number[]>([]);
 
-  const toggleInlineQuote = (targetNum: number) => {
-    // Dismiss any active hover preview tooltip immediately on click
+  const handleToggleInline = (targetNum: number) => {
     dismissHover();
-
-    // Prevent circular recursion if post is already in current ancestor chain
-    if (ancestorChain.includes(targetNum)) return;
-
     setInlinedPosts((prev) =>
       prev.includes(targetNum) ? prev.filter((n) => n !== targetNum) : [...prev, targetNum]
     );
   };
 
-  const removeInlinedPost = (targetNum: number) => {
-    setInlinedPosts((prev) => prev.filter((n) => n !== targetNum));
-  };
-
+  const currentChain = [...ancestorChain, post.postNumber];
   const backlinks = getBacklinks(post.postNumber);
+  const isExpanded = post.file ? Boolean(expandedImages[post.file.imageNum]) : false;
 
   return (
     <article
-      id={!isInlined ? `p${post.postNumber}` : undefined}
-      className={`flex flex-col p-3 transition-all duration-150 ${
-        isInlined ? themeStyles.inlinedBox : themeStyles.replyBox
-      } ${isInlined ? "my-2 max-w-full" : "max-w-3xl"}`}
+      id={`p${post.postNumber}`}
+      className={`text-xs transition-colors duration-100 ${
+        isInlined
+          ? `my-1.5 p-2.5 ${themeStyles.inlinedBox} ${themeStyles.inlineBorder}`
+          : post.isOp
+          ? "w-full"
+          : `inline-block max-w-3xl p-3 my-1.5 ${themeStyles.replyBox}`
+      }`}
     >
-      {/* Post Header: Small circular avatar first, horizontally aligned with username, post ID, and replier avatars */}
-      <div className="flex flex-wrap items-center justify-between gap-x-2 text-xs mb-1.5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {post.title && (
-            <span className={`font-bold mr-0.5 ${themeStyles.subjectText}`}>
-              {post.title}
-            </span>
-          )}
-
-          {/* User Profile: Small circular avatar image + Name */}
-          <div className="flex items-center gap-1.5">
-            <div
-              className={`w-5 h-5 rounded-full bg-gradient-to-br ${post.user.avatarBg} flex items-center justify-center text-[8px] font-bold text-white shadow-xs shrink-0 select-none ring-1 ring-black/10`}
-              title={`User: @${post.user.username}`}
-            >
-              {post.user.initials}
-            </div>
-            <span className={themeStyles.nameText}>{post.user.username}</span>
-            <span className="opacity-50 text-[11px] font-mono">@{post.user.username.toLowerCase()}</span>
-          </div>
-
-          {post.isOp && (
-            <span className="text-[10px] rounded-full bg-sky-500/15 text-[#1DA1F2] font-mono px-2 py-0.2 font-semibold">
-              OP
-            </span>
-          )}
-
-          <span className="opacity-50 text-[11px] font-mono">• {post.timestamp}</span>
-
-          <button
-            onClick={() => handlePostNumberClick(post.postNumber)}
-            className={`font-mono text-[11px] ${themeStyles.postNumber}`}
-            title="Click to quote in reply box"
-          >
-            No. {post.postNumber}
-          </button>
-
-          {/* ================= HORIZONTALLY ALIGNED REPLIER AVATARS ================= */}
-          {backlinks.length > 0 && (
-            <div className="inline-flex items-center gap-1 pl-1.5 border-l border-current/20">
-              <span className="text-[10px] font-mono opacity-50 select-none">replies:</span>
-              <div className="inline-flex items-center -space-x-1 hover:space-x-1 transition-all">
-                {backlinks.map((b) => {
-                  const replierPost = postsMap.get(b.postNumber);
-                  if (!replierPost) return null;
-                  const isAlreadyInlined = inlinedPosts.includes(b.postNumber);
-
-                  return (
-                    <button
-                      key={b.postNumber}
-                      type="button"
-                      onClick={() => toggleInlineQuote(b.postNumber)}
-                      onMouseEnter={(e) => handleQuoteMouseEnter(b.postNumber, e)}
-                      onMouseLeave={handleQuoteMouseLeave}
-                      className={`relative rounded-full transition-transform hover:scale-125 hover:z-20 cursor-pointer ${
-                        isAlreadyInlined
-                          ? "ring-2 ring-[#1DA1F2] scale-110 z-10"
-                          : "ring-1 ring-white/80 shadow-xs"
-                      }`}
-                      title={`${replierPost.user.username} (No. ${b.postNumber}) • Click to inline • Hover to preview`}
-                    >
-                      <div
-                        className={`w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-full bg-gradient-to-br ${replierPost.user.avatarBg} flex items-center justify-center text-[7.5px] font-bold text-white shadow-xs`}
-                      >
-                        {replierPost.user.initials}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {isInlined && (
-            <span className="text-[10px] font-mono opacity-50 italic">
-              (inlined)
-            </span>
-          )}
-        </div>
-
-        {/* Close button if this card is inlined */}
+      {/* 1. POST HEADER (Identity, Time, Post No, Backlinks) */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-2 text-[11px] leading-tight">
         {isInlined && onCloseInline && (
           <button
             onClick={onCloseInline}
-            className="text-[11px] font-mono opacity-60 hover:opacity-100 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full hover:bg-black/10"
-            title="Close inlined post"
+            className="font-mono text-[10px] text-red-500 font-bold hover:underline mr-1"
+            title="Close inlined quote"
           >
-            <X className="h-3 w-3" />
-            <span>[close]</span>
+            [close]
           </button>
+        )}
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div
+            className={`w-4.5 h-4.5 rounded-full bg-gradient-to-br ${post.user.avatarBg || "from-blue-600 to-indigo-800"} flex items-center justify-center text-[7.5px] font-bold text-white shadow-xs`}
+          >
+            {post.user.initials || "AN"}
+          </div>
+          <span className={themeStyles.nameText}>{post.user.username}</span>
+          <span className="opacity-50 text-[10px] font-mono">@{post.user.username.toLowerCase()}</span>
+        </div>
+
+        {post.isOp && (
+          <span className="rounded-full bg-sky-500/15 text-[#1DA1F2] px-1.5 py-0.2 text-[9px] font-mono font-semibold">
+            OP
+          </span>
+        )}
+
+        {post.title && <span className={`${themeStyles.subjectText} font-bold mr-1`}>{post.title}</span>}
+
+        <span className="opacity-50 text-[10px] font-mono">{post.timestamp}</span>
+
+        <button
+          onClick={() => handlePostNumberClick(post.postNumber)}
+          className={`font-mono font-semibold ${themeStyles.postNumber}`}
+          title="Click to quote this post"
+        >
+          No. {post.postNumber}
+        </button>
+
+        {/* Backlinks */}
+        {backlinks.length > 0 && (
+          <div className="flex items-center gap-1.5 pl-1.5 border-l border-current/20">
+            <span className="text-[10px] opacity-40 font-mono">replies:</span>
+            <div className="flex items-center -space-x-1">
+              {backlinks.map((bl) => (
+                <button
+                  key={bl.postNumber}
+                  onClick={() => handleToggleInline(bl.postNumber)}
+                  onMouseEnter={(e) => handleQuoteMouseEnter(bl.postNumber, e)}
+                  onMouseLeave={handleQuoteMouseLeave}
+                  className={`w-4 h-4 rounded-full bg-gradient-to-br ${bl.user.avatarBg || "from-blue-600 to-indigo-800"} flex items-center justify-center text-[7px] font-bold text-white border border-white shadow-xs hover:scale-125 transition-transform z-10`}
+                  title={`Reply from @${bl.user.username} (>>${bl.postNumber})`}
+                >
+                  {bl.user.initials || "AN"}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* ================= INLINED POSTS CONTAINER ================= */}
+      {/* 2. INLINED POSTS */}
       {inlinedPosts.length > 0 && (
-        <div className={`my-2 pl-2 sm:pl-3 space-y-2 ${themeStyles.inlineBorder}`}>
+        <div className="my-2 space-y-2 pl-2 border-l-2 border-current/15">
           {inlinedPosts.map((targetNum) => {
-            const target = postsMap.get(targetNum);
-            if (!target) return null;
+            const targetPost = postsMap.get(targetNum);
+            if (!targetPost) {
+              return (
+                <div key={targetNum} className="text-[10px] font-mono text-red-500 p-1">
+                  Post No. {targetNum} not found
+                </div>
+              );
+            }
+
+            if (currentChain.includes(targetNum)) {
+              return (
+                <div key={targetNum} className="text-[10px] font-mono opacity-50 p-1">
+                  [Cyclic Quote &gt;&gt;{targetNum}]
+                </div>
+              );
+            }
+
             return (
               <PostCard
                 key={targetNum}
-                post={target}
+                post={targetPost}
                 isInlined={true}
-                onCloseInline={() => removeInlinedPost(targetNum)}
-                ancestorChain={[...ancestorChain, post.postNumber]}
+                ancestorChain={currentChain}
+                onCloseInline={() => handleToggleInline(targetNum)}
                 themeStyles={themeStyles}
                 postsMap={postsMap}
                 getBacklinks={getBacklinks}
@@ -253,100 +237,82 @@ function PostCard({
         </div>
       )}
 
-      {/* File details bar */}
+      {/* 3. FILE INFO BAR */}
       {post.file && (
-        <div className={`text-[10.5px] font-mono mb-2 flex flex-wrap items-center gap-1.5 ${themeStyles.fileInfo}`}>
+        <div className={`text-[10px] font-mono mb-1.5 flex items-center gap-1.5 ${themeStyles.fileInfo}`}>
           <span>File:</span>
-          <span className="underline cursor-pointer">{post.file.name}</span>
+          <span className="font-semibold underline cursor-pointer hover:opacity-100">{post.file.name}</span>
           <span>({post.file.size}, {post.file.dimensions})</span>
         </div>
       )}
 
-      {/* Post Body: Image on left, comment on right */}
+      {/* 4. MEDIA + COMMENT BODY CONTAINER */}
       <div className="flex flex-col sm:flex-row items-start gap-3">
-        {/* Image Thumbnail with click-to-expand */}
         {post.file && (
-          <div className="shrink-0">
+          <div className="shrink-0 max-w-full">
             <div
               onClick={() => toggleImageExpand(post.file!.imageNum)}
-              className={`relative cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br ${post.file.colorTone} flex flex-col items-center justify-center border border-black/10 select-none shadow-sm transition-all ${
-                expandedImages[post.file.imageNum]
-                  ? "w-full max-w-[420px] h-[280px]"
-                  : `w-[130px] sm:w-[150px] ${post.file.ratioClass}`
+              className={`relative cursor-pointer overflow-hidden rounded-lg bg-gradient-to-br ${post.file.colorTone} flex flex-col items-center justify-center border border-black/10 shadow-xs transition-all ${
+                isExpanded ? "w-full max-w-[500px] h-auto p-8" : "w-[125px] h-[95px]"
               }`}
-              title="Click image to expand / minimize"
+              title="Click to expand / collapse media"
             >
-              <div className="absolute top-1 right-1 rounded-full bg-black/70 p-1 text-white/90">
-                {expandedImages[post.file.imageNum] ? (
-                  <Minimize2 className="h-2.5 w-2.5" />
-                ) : (
-                  <Maximize2 className="h-2.5 w-2.5" />
-                )}
+              <span className="text-[8px] uppercase font-mono tracking-wider opacity-60 text-white">
+                IMG #{post.file.imageNum}
+              </span>
+              <span className="text-base font-black font-mono text-white">#{post.file.imageNum}</span>
+              <span className="text-[8px] font-mono opacity-60 text-white">{post.file.dimensions}</span>
+
+              <div className="absolute bottom-1 right-1 p-1 rounded-full bg-black/40 text-white hover:bg-black/60">
+                {isExpanded ? <Minimize2 className="h-2.5 w-2.5" /> : <Maximize2 className="h-2.5 w-2.5" />}
               </div>
-              <span className="text-[9px] font-mono opacity-70 text-zinc-900">
-                ATTACHMENT #{post.file.imageNum}
-              </span>
-              <span className="text-xl font-black font-mono text-zinc-950">
-                #{post.file.imageNum}
-              </span>
-              <span className="text-[8px] opacity-70 font-mono text-zinc-900">
-                {post.file.dimensions}
-              </span>
             </div>
           </div>
         )}
 
-        {/* Comment text with quotes */}
-        {post.comments && post.comments.length > 0 && (
-          <div className="flex-1 space-y-1 text-[13.5px] leading-relaxed">
-            {post.comments.map((line, lIdx) => {
-              const isQuoteLink = line.startsWith(">>");
-              const isGreenText = line.startsWith(">");
+        {/* Comment Text with Greentext syntax and Quoting back-buttons */}
+        <div className="flex-1 space-y-1 text-xs leading-relaxed font-sans">
+          {post.comments.map((line, idx) => {
+            const isGreen = line.startsWith(">");
+            const quoteMatch = line.match(/^>>(\d+)/);
 
-              if (isQuoteLink) {
-                const targetNum = parseInt(line.replace(">>", ""), 10);
-                const targetPost = postsMap.get(targetNum);
-                const isAlreadyInlined = inlinedPosts.includes(targetNum);
-
-                return (
-                  <p key={lIdx} className="font-mono text-xs">
-                    <button
-                      type="button"
-                      onClick={() => toggleInlineQuote(targetNum)}
-                      onMouseEnter={(e) => handleQuoteMouseEnter(targetNum, e)}
-                      onMouseLeave={handleQuoteMouseLeave}
-                      className={`${themeStyles.quoteLink} inline-flex items-center gap-1.5`}
-                      title="Left click to inline post above image/text • Hover to preview"
-                    >
-                      {targetPost && (
-                        <span
-                          className={`w-3.5 h-3.5 rounded-full bg-gradient-to-br ${targetPost.user.avatarBg} inline-flex items-center justify-center text-[6.5px] font-bold text-white shrink-0`}
-                        >
-                          {targetPost.user.initials}
-                        </span>
-                      )}
-                      <span>
-                        {targetPost ? `@${targetPost.user.username}` : line}
-                      </span>
-                      <span className="text-[10px] opacity-60">
-                        {isAlreadyInlined ? "[inline ✕]" : "[inline ↴]"}
-                      </span>
-                    </button>
-                  </p>
-                );
-              }
+            if (quoteMatch) {
+              const targetNum = parseInt(quoteMatch[1], 10);
+              const targetPost = postsMap.get(targetNum);
+              const remainder = line.slice(quoteMatch[0].length);
 
               return (
-                <p
-                  key={lIdx}
-                  className={isGreenText ? `${themeStyles.greenText} font-mono text-[13px]` : ""}
-                >
-                  {line}
-                </p>
+                <div key={idx} className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => handleToggleInline(targetNum)}
+                    onMouseEnter={(e) => handleQuoteMouseEnter(targetNum, e)}
+                    onMouseLeave={handleQuoteMouseLeave}
+                    className={`inline-flex items-center gap-1 font-mono font-semibold hover:underline ${themeStyles.quoteLink}`}
+                  >
+                    {targetPost && (
+                      <span
+                        className={`w-3.5 h-3.5 rounded-full bg-gradient-to-br ${targetPost.user.avatarBg || "from-blue-600 to-indigo-800"} flex items-center justify-center text-[6px] font-bold text-white shadow-xs`}
+                      >
+                        {targetPost.user.initials || "AN"}
+                      </span>
+                    )}
+                    <span>&gt;&gt;{targetNum}</span>
+                    <span className="text-[9px] opacity-70">↴</span>
+                  </button>
+                  {remainder && (
+                    <span className={isGreen ? `${themeStyles.greenText} font-mono` : ""}>{remainder}</span>
+                  )}
+                </div>
               );
-            })}
-          </div>
-        )}
+            }
+
+            return (
+              <p key={idx} className={isGreen ? `${themeStyles.greenText} font-mono` : ""}>
+                {line}
+              </p>
+            );
+          })}
+        </div>
       </div>
     </article>
   );
@@ -359,19 +325,42 @@ function ThreadContent({ params }: ThreadPageProps) {
   const [theme, setTheme] = useState<ThemeMode>("twitter"); // Default to Twitter theme
   const [expandedImages, setExpandedImages] = useState<Record<number, boolean>>({});
   const [quickReplyText, setQuickReplyText] = useState("");
-  const [showReplyBox, setShowReplyBox] = useState(false);
+  const [replyUsername, setReplyUsername] = useState("");
+  const [replyHasImage, setReplyHasImage] = useState(false);
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  const [botLoading, setBotLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Thread live state
+  const [threadState, setThreadState] = useState<{ op: Thread; replies: ThreadReply[] } | null>(null);
 
   // Hover state for floating preview tooltip
   const [hoverState, setHoverState] = useState<HoverState | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load thread data
-  const threadData = useMemo(() => getThreadData(threadId), [threadId]);
-  const { op, replies } = threadData;
+  const loadThread = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchThread(threadId);
+      setThreadState(data);
+    } catch (err) {
+      console.error("Failed to load thread:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadThread();
+  }, [threadId]);
+
+  const op = threadState?.op;
+  const replies = useMemo(() => threadState?.replies || [], [threadState]);
 
   // Build unified lookup map for any post (OP or reply)
   const postsMap = useMemo(() => {
     const map = new Map<number, UnifiedPost>();
+    if (!op) return map;
 
     // OP
     map.set(op.threadNumber, {
@@ -393,7 +382,7 @@ function ThreadContent({ params }: ThreadPageProps) {
         isOp: false,
         timestamp: r.timestamp,
         file: r.file,
-        comments: r.comment || [],
+        comments: r.comments || [],
         replyTo: r.replyTo || [],
       });
     });
@@ -410,7 +399,6 @@ function ThreadContent({ params }: ThreadPageProps) {
   };
 
   const handlePostNumberClick = (postNumber: number) => {
-    setShowReplyBox(true);
     setQuickReplyText((prev) => (prev ? `${prev}\n>>${postNumber}\n` : `>>${postNumber}\n`));
   };
 
@@ -438,6 +426,47 @@ function ThreadContent({ params }: ThreadPageProps) {
 
   const cancelHoverClose = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
+
+  // Submit Reply
+  const handleSubmitReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickReplyText.trim()) return;
+
+    setIsSubmittingReply(true);
+    try {
+      // Extract quote links from text
+      const quotes = Array.from(quickReplyText.matchAll(/>>(\d+)/g)).map((m) => parseInt(m[1], 10));
+
+      await postReply(threadId, {
+        comment: quickReplyText.trim(),
+        replyTo: Array.from(new Set(quotes)),
+        user: {
+          username: replyUsername.trim() || "Anonymous",
+        },
+        hasImage: replyHasImage,
+      });
+
+      setQuickReplyText("");
+      await loadThread();
+    } catch (err) {
+      console.error("Failed to post reply:", err);
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
+
+  // Bot Trigger Reply
+  const handleBotReply = async () => {
+    setBotLoading(true);
+    try {
+      await triggerBot("reply", { threadId });
+      await loadThread();
+    } catch (err) {
+      console.error("Bot reply failed:", err);
+    } finally {
+      setBotLoading(false);
+    }
   };
 
   // Themes: Twitter, Classic Yotsuba, Light
@@ -478,98 +507,109 @@ function ThreadContent({ params }: ThreadPageProps) {
       pageBg: "bg-white text-slate-800",
       topBar: "bg-slate-100/90 border-slate-200 text-slate-800",
       replyBox: "bg-slate-50 border-slate-200 text-slate-800 shadow-sm rounded-md",
-      inlinedBox: "bg-slate-100/90 border-slate-300 text-slate-800 rounded-md",
-      previewBox: "bg-white border-emerald-600 text-slate-800 shadow-xl rounded-md",
-      subjectText: "text-indigo-700 font-bold",
-      nameText: "text-emerald-700 font-bold",
-      postNumber: "text-slate-400 hover:text-slate-700",
-      quoteLink: "text-indigo-600 hover:underline cursor-pointer font-medium",
-      greenText: "text-emerald-700",
+      inlinedBox: "bg-slate-100 border-slate-300 text-slate-900 rounded-md",
+      previewBox: "bg-white border-2 border-emerald-600 text-slate-900 rounded-md shadow-2xl",
+      subjectText: "text-slate-900 font-extrabold",
+      nameText: "text-emerald-800 font-bold hover:underline cursor-pointer",
+      postNumber: "text-slate-400 hover:text-emerald-700",
+      quoteLink: "text-emerald-700 hover:underline cursor-pointer font-medium",
+      greenText: "text-emerald-600 font-medium",
       fileInfo: "text-slate-500",
-      metaBar: "border-slate-200 text-slate-400",
-      inlineBorder: "border-l-2 border-emerald-600/60",
-      tweetButton: "bg-emerald-700 hover:bg-emerald-600 text-white font-medium rounded-md px-4 py-1.5 shadow transition-colors",
+      metaBar: "border-slate-200 text-slate-500",
+      inlineBorder: "border-l-3 border-emerald-600",
+      tweetButton: "bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded px-4 py-1.5 shadow transition-colors",
     },
   }[theme];
 
-  // Preview target post for floating tooltip
   const previewPost = hoverState ? postsMap.get(hoverState.postNumber) : null;
 
+  if (loading) {
+    return (
+      <div className={`min-h-screen ${themeStyles.pageBg} flex items-center justify-center font-mono text-xs opacity-70`}>
+        <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+        <span>Loading thread #{threadId}...</span>
+      </div>
+    );
+  }
+
+  if (!op) {
+    return (
+      <div className={`min-h-screen ${themeStyles.pageBg} flex flex-col items-center justify-center text-center p-6`}>
+        <h1 className="text-xl font-bold mb-2">Thread #{threadId} Not Found</h1>
+        <p className="text-xs opacity-60 mb-6">
+          This thread does not exist or has expired. All mock placeholders have been removed!
+        </p>
+        <Link
+          href="/"
+          className="px-4 py-2 rounded-full text-xs font-semibold bg-[#1DA1F2] text-white hover:bg-[#1a91da]"
+        >
+          [Return to Boards Index]
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div className={`min-h-screen ${themeStyles.pageBg} flex flex-col font-sans transition-colors duration-150`}>
-      {/* Thread Navigation Header */}
-      <header className={`sticky top-0 z-30 border-b backdrop-blur-md px-4 sm:px-6 py-2.5 shadow-sm ${themeStyles.topBar}`}>
-        <div className="flex w-full items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 sm:gap-3">
+    <div className={`min-h-screen ${themeStyles.pageBg} font-sans transition-colors duration-150`}>
+      {/* Top Banner Navigation Bar */}
+      <header className={`sticky top-0 z-40 border-b backdrop-blur-md px-4 py-2 shadow-xs ${themeStyles.topBar}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Left Navigation */}
+          <div className="flex items-center gap-3">
             <Link
-              href="/"
-              className="flex items-center gap-1 font-semibold hover:underline opacity-80 hover:opacity-100"
+              href={`/catalog?b=${op.boardId}`}
+              className="flex items-center gap-1 font-semibold opacity-80 hover:opacity-100"
             >
-              <span>[Home]</span>
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>[/{op.boardId}/ Catalog]</span>
             </Link>
-            <span className="opacity-40">/</span>
-            <Link
-              href="/catalog"
-              className={`flex items-center gap-1.5 font-semibold hover:underline ${
-                theme === "twitter" ? "text-[#1DA1F2]" : "text-emerald-700"
-              }`}
-            >
-              {theme === "twitter" ? (
-                <TwitterIcon className="h-4 w-4 fill-current" />
-              ) : (
-                <ArrowLeft className="h-3.5 w-3.5" />
-              )}
-              <span>[Catalog]</span>
-            </Link>
-            <span className="opacity-40">/</span>
-            <span className="font-mono text-[11px] opacity-75">
-              /fit/ - Thread No.{op.threadNumber}
-            </span>
+
+            <span className="opacity-30">|</span>
+
+            <span className="font-mono opacity-80">Thread #{op.id}</span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="hidden md:inline font-mono text-[10px] opacity-60">
-              Left-click replier avatar to inline • Hover to preview
-            </span>
+          {/* Quick Actions & Controls */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBotReply}
+              disabled={botLoading}
+              className={`flex items-center gap-1 rounded-full border border-purple-400/50 bg-purple-500/10 px-2.5 py-1 text-xs font-medium text-purple-700 dark:text-purple-400 hover:bg-purple-500/20 transition-all ${
+                botLoading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              title="Cold Start: Let an automated agent bot post a reply"
+            >
+              <Bot className={`h-3.5 w-3.5 ${botLoading ? "animate-spin" : ""}`} />
+              <span>{botLoading ? "Bot Replying..." : "Bot Reply"}</span>
+            </button>
 
-            <a href="#bottom" className="opacity-75 hover:opacity-100 hidden sm:flex items-center gap-1">
+            <a href="#bottom" className="opacity-70 hover:opacity-100 flex items-center gap-1">
               <ArrowDown className="h-3 w-3" />
               <span>[Bottom]</span>
             </a>
 
-            <button
-              onClick={() => setShowReplyBox((v) => !v)}
-              className={`opacity-85 hover:opacity-100 flex items-center gap-1 font-semibold ${
-                theme === "twitter" ? "text-[#1DA1F2]" : "text-emerald-700"
-              }`}
-            >
-              <MessageSquare className="h-3 w-3" />
-              <span>[Reply]</span>
-            </button>
-
-            {/* Theme Toggle (Twitter -> Classic -> Light) */}
+            {/* Theme Toggle */}
             <button
               onClick={() => {
                 const next: ThemeMode =
                   theme === "twitter" ? "classic" : theme === "classic" ? "light" : "twitter";
                 setTheme(next);
               }}
-              className="flex items-center gap-1.5 rounded-full border border-current/20 px-3 py-1 text-xs font-medium opacity-80 hover:opacity-100 transition-all"
-              title="Cycle Theme: Twitter -> Classic -> Light"
+              className="flex items-center gap-1.5 rounded-full border border-current/20 px-2.5 py-0.5 text-xs opacity-80 hover:opacity-100"
             >
               {theme === "twitter" ? (
                 <>
-                  <TwitterIcon className="h-3.5 w-3.5 text-[#1DA1F2] fill-[#1DA1F2]" />
+                  <TwitterIcon className="h-3 w-3 text-[#1DA1F2] fill-[#1DA1F2]" />
                   <span className="font-semibold text-[#1DA1F2]">Twitter</span>
                 </>
               ) : theme === "classic" ? (
                 <>
-                  <Sparkles className="h-3.5 w-3.5 text-amber-700" />
+                  <Sparkles className="h-3 w-3 text-amber-700" />
                   <span>Classic</span>
                 </>
               ) : (
                 <>
-                  <Sun className="h-3.5 w-3.5 text-amber-600" />
+                  <Sun className="h-3 w-3 text-amber-600" />
                   <span>Light</span>
                 </>
               )}
@@ -578,11 +618,11 @@ function ThreadContent({ params }: ThreadPageProps) {
         </div>
       </header>
 
-      {/* Main Thread Content (LEFT-ALIGNED) */}
-      <main className="flex-1 w-full px-4 sm:px-6 py-4 space-y-4">
+      {/* Main Content Area (Strict Left-Aligned Layout) */}
+      <main className="px-4 sm:px-6 py-4">
         {/* ================= ORIGINAL POST (OP) ================= */}
-        {postsMap.has(op.threadNumber) && (
-          <section id={`p${op.threadNumber}`} className="max-w-3xl">
+        {postsMap.get(op.threadNumber) && (
+          <section className="mb-4">
             <PostCard
               post={postsMap.get(op.threadNumber)!}
               themeStyles={themeStyles}
@@ -600,28 +640,34 @@ function ThreadContent({ params }: ThreadPageProps) {
 
         {/* ================= REPLIES ================= */}
         <section className="space-y-3 pt-2">
-          {replies.map((reply) => {
-            const unified = postsMap.get(reply.postNumber);
-            if (!unified) return null;
+          {replies.length === 0 ? (
+            <div className="py-6 text-xs opacity-60 italic">
+              No replies yet. Be the first to reply or trigger a bot reply above!
+            </div>
+          ) : (
+            replies.map((reply) => {
+              const unified = postsMap.get(reply.postNumber);
+              if (!unified) return null;
 
-            return (
-              <div key={reply.id} className="flex items-start gap-2">
-                <span className="text-xs opacity-30 select-none pt-2 hidden sm:inline">&gt;&gt;</span>
-                <PostCard
-                  post={unified}
-                  themeStyles={themeStyles}
-                  postsMap={postsMap}
-                  getBacklinks={getBacklinks}
-                  expandedImages={expandedImages}
-                  toggleImageExpand={toggleImageExpand}
-                  handlePostNumberClick={handlePostNumberClick}
-                  handleQuoteMouseEnter={handleQuoteMouseEnter}
-                  handleQuoteMouseLeave={handleQuoteMouseLeave}
-                  dismissHover={dismissHover}
-                />
-              </div>
-            );
-          })}
+              return (
+                <div key={reply.id} className="flex items-start gap-2">
+                  <span className="text-xs opacity-30 select-none pt-2 hidden sm:inline">&gt;&gt;</span>
+                  <PostCard
+                    post={unified}
+                    themeStyles={themeStyles}
+                    postsMap={postsMap}
+                    getBacklinks={getBacklinks}
+                    expandedImages={expandedImages}
+                    toggleImageExpand={toggleImageExpand}
+                    handlePostNumberClick={handlePostNumberClick}
+                    handleQuoteMouseEnter={handleQuoteMouseEnter}
+                    handleQuoteMouseLeave={handleQuoteMouseLeave}
+                    dismissHover={dismissHover}
+                  />
+                </div>
+              );
+            })
+          )}
         </section>
 
         {/* Quick Reply Form (Left-aligned) */}
@@ -631,20 +677,17 @@ function ThreadContent({ params }: ThreadPageProps) {
               <MessageSquare className={`h-3.5 w-3.5 ${theme === "twitter" ? "text-[#1DA1F2]" : "text-emerald-700"}`} />
               Reply to Thread No. {op.threadNumber}
             </span>
-            <span className="opacity-50 font-mono text-[10px]">SFW Fitness Board</span>
+            <span className="opacity-50 font-mono text-[10px]">Board /{op.boardId}/</span>
           </div>
 
-          <div className="space-y-3 text-xs">
+          <form onSubmit={handleSubmitReply} className="space-y-3 text-xs">
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Name (e.g. IronLifter)"
-                className="w-1/2 rounded-full border border-current/20 bg-transparent px-3 py-1.5 outline-none focus:border-[#1DA1F2] text-xs"
-              />
-              <input
-                type="text"
-                placeholder="Options"
-                className="w-1/2 rounded-full border border-current/20 bg-transparent px-3 py-1.5 outline-none focus:border-[#1DA1F2] text-xs"
+                value={replyUsername}
+                onChange={(e) => setReplyUsername(e.target.value)}
+                placeholder="Name / Handle (e.g. Anonymous)"
+                className="w-full rounded-full border border-current/20 bg-transparent px-3 py-1.5 outline-none focus:border-[#1DA1F2] text-xs"
               />
             </div>
 
@@ -652,42 +695,56 @@ function ThreadContent({ params }: ThreadPageProps) {
               rows={4}
               value={quickReplyText}
               onChange={(e) => setQuickReplyText(e.target.value)}
-              placeholder="What's happening? (Quote posts with '>>No.')"
+              placeholder="What's happening? (Quote posts with '>>No.', lines starting with '>' turn green)"
+              required
               className="w-full rounded-xl border border-current/20 bg-transparent p-3 font-sans text-xs outline-none focus:border-[#1DA1F2]"
             />
 
             <div className="flex items-center justify-between pt-1">
-              <button
-                type="button"
-                className="flex items-center gap-1.5 text-[11px] opacity-70 hover:opacity-100 border border-current/20 rounded-full px-3 py-1"
-              >
+              <label className="flex items-center gap-1.5 text-[11px] opacity-70 hover:opacity-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={replyHasImage}
+                  onChange={(e) => setReplyHasImage(e.target.checked)}
+                  className="rounded"
+                />
                 <ImageIcon className="h-3.5 w-3.5" />
-                <span>Media</span>
-              </button>
+                <span>Attach Media</span>
+              </label>
 
-              <button
-                type="button"
-                className={themeStyles.tweetButton}
-              >
-                <div className="flex items-center gap-1.5">
-                  <Send className="h-3 w-3" />
-                  <span>{theme === "twitter" ? "Tweet Reply" : "Post Reply"}</span>
-                </div>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleBotReply}
+                  disabled={botLoading}
+                  className="px-3 py-1.5 rounded-full border border-purple-400/40 text-purple-600 text-xs hover:bg-purple-50 flex items-center gap-1"
+                >
+                  <Bot className="h-3 w-3" />
+                  <span>Bot Reply</span>
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingReply}
+                  className={themeStyles.tweetButton}
+                >
+                  {isSubmittingReply ? "Posting..." : "Post Reply"}
+                </button>
+              </div>
             </div>
-          </div>
+          </form>
         </section>
 
         {/* Bottom anchor and controls */}
         <div id="bottom" className={`pt-6 pb-12 flex items-center justify-between text-xs border-t ${themeStyles.metaBar} max-w-5xl`}>
           <Link
-            href="/"
+            href={`/catalog?b=${op.boardId}`}
             className={`flex items-center gap-1.5 font-semibold hover:underline ${
               theme === "twitter" ? "text-[#1DA1F2]" : "text-emerald-700"
             }`}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>[Return to Catalog]</span>
+            <span>[Return to /{op.boardId}/ Catalog]</span>
           </Link>
 
           <a href="#" className="opacity-75 hover:opacity-100 flex items-center gap-1">
@@ -713,9 +770,9 @@ function ThreadContent({ params }: ThreadPageProps) {
           <div className="flex items-baseline justify-between gap-1 mb-1.5 border-b border-current/10 pb-1.5">
             <div className="flex items-center gap-1.5">
               <div
-                className={`w-4.5 h-4.5 rounded-full bg-gradient-to-br ${previewPost.user.avatarBg} flex items-center justify-center text-[7.5px] font-bold text-white shadow-xs shrink-0`}
+                className={`w-4.5 h-4.5 rounded-full bg-gradient-to-br ${previewPost.user.avatarBg || "from-blue-600 to-indigo-800"} flex items-center justify-center text-[7.5px] font-bold text-white shadow-xs shrink-0`}
               >
-                {previewPost.user.initials}
+                {previewPost.user.initials || "AN"}
               </div>
               <span className={themeStyles.nameText}>{previewPost.user.username}</span>
               {previewPost.isOp && (
@@ -740,7 +797,7 @@ function ThreadContent({ params }: ThreadPageProps) {
           <div className="flex items-start gap-2 pt-0.5">
             {previewPost.file && (
               <div
-                className={`w-[70px] h-[55px] shrink-0 rounded-lg bg-gradient-to-br ${previewPost.file.colorTone} flex items-center justify-center font-mono text-[10px] font-bold border border-black/10`}
+                className={`w-[70px] h-[55px] shrink-0 rounded-lg bg-gradient-to-br ${previewPost.file.colorTone} flex items-center justify-center font-mono text-[10px] font-bold border border-black/10 text-white`}
               >
                 #{previewPost.file.imageNum}
               </div>

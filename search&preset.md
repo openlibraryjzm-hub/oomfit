@@ -4,11 +4,12 @@ This document details the **Dual Search & Dynamic Preset Engine** powering the d
 
 ---
 
-## ⚠️ Early Development & Heavy Placeholder Status
+## 🔌 Multi-Source Board Indexing
 
-> [!NOTE]
-> **Prototype Stage Notice:**  
-> The search and preset system currently operates on an in-memory client dataset of **105 registered boards** in `src/lib/boards.ts`. All matched boards route to the shared catalog placeholder dataset (`/catalog?b=[shortcode]`). In production, this architecture will interface with database indexes and community-created boards.
+The search engine operates over both built-in seed boards and user-created boards:
+* **Built-in Boards (105):** Core registered boards categorized into curated presets (`src/lib/boards.ts`).
+* **Community Boards (Live Supabase):** Real-time boards created by visitors via the `boards` database table, seamlessly incorporated into generic search scoring and deduplicated.
+* **Direct Routing:** All matched boards route to `/catalog?b=[shortcode]`, rendering their live threads from the database.
 
 ---
 

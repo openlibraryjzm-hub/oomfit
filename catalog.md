@@ -1,12 +1,25 @@
 # Catalog Documentation (`catalog.md`)
 
-This document provides a detailed breakdown of the **Catalog Board View** implemented in `src/app/page.tsx`.
+This document provides a detailed breakdown of the **Catalog Board View** implemented in `src/app/catalog/page.tsx`.
 
 ---
 
 ## 🎯 Purpose & Design Philosophy
 
-The catalog is the primary landing and discovery page of any board in **oomfit** (currently demonstrating `/fit/`). It offers a high-density, visual mosaic of active threads, allowing users to skim hundreds of conversations effortlessly.
+The catalog is the primary landing and discovery page of any board in **oomfit** (routed via `/catalog?b=[shortcode]`). It offers a high-density, visual mosaic of active threads, allowing users to skim conversations effortlessly.
+
+---
+
+## 🔌 Live Data & Authentic Empty State
+
+The catalog interfaces directly with the backend API (`/api/threads?b=[shortcode]`):
+1. **Live Thread Feed:** Displays only threads stored in the Supabase database for the active board.
+2. **Authentic Empty Board View:** Fresh boards with 0 active threads display an authentic imageboard empty state:
+   > *"There are currently no threads on /[shortcode]/. Be the first to start a conversation, or simulate a bot poster!"*
+3. **Quick Actions:**
+   - **`[New Thread]`**: Launches a thread creation modal (Subject, Name/Handle, Body with greentext support, Image toggle).
+   - **`[New Board]`**: Launches custom board registration modal.
+   - **`[Bot Seed]`**: Triggers an automated agent bot to author an on-topic thread and populate the catalog.
 
 ---
 
