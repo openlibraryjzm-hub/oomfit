@@ -500,9 +500,16 @@ function ThreadContent({ params }: ThreadPageProps) {
       {/* Thread Navigation Header */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-md px-4 sm:px-6 py-2.5 shadow-sm ${themeStyles.topBar}`}>
         <div className="flex w-full items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/"
+              className="flex items-center gap-1 font-semibold hover:underline opacity-80 hover:opacity-100"
+            >
+              <span>[Home]</span>
+            </Link>
+            <span className="opacity-40">/</span>
+            <Link
+              href="/catalog"
               className={`flex items-center gap-1.5 font-semibold hover:underline ${
                 theme === "twitter" ? "text-[#1DA1F2]" : "text-emerald-700"
               }`}
@@ -512,7 +519,7 @@ function ThreadContent({ params }: ThreadPageProps) {
               ) : (
                 <ArrowLeft className="h-3.5 w-3.5" />
               )}
-              <span>[Return to Catalog]</span>
+              <span>[Catalog]</span>
             </Link>
             <span className="opacity-40">/</span>
             <span className="font-mono text-[11px] opacity-75">

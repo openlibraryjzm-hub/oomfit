@@ -55,12 +55,18 @@ oomfit/
 │   ├── app/
 │   │   ├── layout.tsx         # Root HTML layout & fonts
 │   │   ├── globals.css        # Global Tailwind v4 styles
-│   │   ├── page.tsx           # Catalog view (Board /fit/ catalog)
+│   │   ├── page.tsx           # 4chan-style Home Page (Early-2000s Directory & Dual Search)
+│   │   ├── catalog/
+│   │   │   └── page.tsx       # Catalog view (Visual thread skimmer, ?b=board)
 │   │   └── thread/
 │   │       └── [id]/
 │   │           └── page.tsx   # Thread view (4chan X style inlining)
 │   └── lib/
+│       ├── boards.ts          # 105 registered boards, 12 presets & dual search engine
 │       └── data.ts            # Mock dataset, user accounts & thread generator
+├── home.md                    # Detailed documentation of the Home Page system
+├── search&preset.md           # Detailed documentation of the Dual Search & Presets
+├── boards.md                  # Brainstorm master catalog of 160+ boards
 ├── catalog.md                 # Detailed documentation of the Catalog system
 ├── thread.md                  # Detailed documentation of the Thread system
 ├── package.json
@@ -74,11 +80,14 @@ oomfit/
 
 1. **Next.js 16 App Router Dynamic Route Conventions:**
    - In Next.js 16, route parameters (`params`) in client components must be unwrapped using React's `use(params)` inside a `<Suspense>` boundary. Never read raw route hooks outside of suspense.
+   - Any client components calling `useSearchParams()` must also be wrapped in a `<Suspense>` boundary.
 2. **Stable Component Identity for Inlining:**
    - On the thread page, `<PostCard>` is declared at the module level (outside `ThreadContent`). This is critical: if declared inside the parent component, hover preview updates cause component remounts, wiping out inlined cards.
-3. **Available Themes:**
-   - **Twitter (Default):** Classic pre-X palette (`#E6ECF0` canvas, `#FFFFFF` cards, `#1DA1F2` blue accents, rounded pill buttons).
-   - **Classic:** Authentic Yotsuba beige imageboard palette (`#FFFFEE` canvas, `#F0E0D6` bars, maroon `#800000`, navy `#0F0C5D`).
+3. **Heavy Placeholder Status:**
+   - All 105+ boards on the home page currently route to the shared placeholder catalog (`/catalog?b=[shortcode]`), displaying dynamic board headers alongside mock threads and reply chains.
+4. **Available Themes:**
+   - **Classic (Default for Home):** Authentic Yotsuba beige imageboard palette (`#FFFFEE` canvas, `#F0E0D6` bars, maroon `#800000`, navy `#0F0C5D`, hover red `#D00`).
+   - **Twitter:** Modern cool palette (`#E6ECF0` canvas, `#FFFFFF` cards, `#1DA1F2` blue accents).
    - **Light:** Clean modern slate palette.
 
 ---
@@ -87,5 +96,8 @@ oomfit/
 
 For in-depth explanations of specific subsystems, consult the dedicated guides:
 
-- 📋 [**Catalog Documentation (catalog.md)**](./catalog.md) — Grid reflow, zoom tolerance (67% - 150%), realistic aspect ratios, and live filtering.
+- 🏠 [**Home Page Documentation (home.md)**](./home.md) — Early-2000s 4chan-style directory layout, compact centered box, bracketed navigation, and directory themes.
+- ⚡ [**Search & Preset Documentation (search&preset.md)**](./search&preset.md) — Dual search engine (`/` prefix for curated presets, linguistic specificity + domain clustering for generic search).
+- 📋 [**Catalog Documentation (catalog.md)**](./catalog.md) — Grid reflow, zoom tolerance (67% - 150%), realistic aspect ratios, and live filtering across boards (`/catalog?b=mc`, etc.).
 - 💬 [**Thread Documentation (thread.md)**](./thread.md) — 4chan X quote hover previews, recursive inlining above image/text, replier avatar rows, and layout rules.
+- 📚 [**Boards Reference (boards.md)**](./boards.md) — Master brainstorm list of 160+ boards across gaming, tech, aesthetics, anime, music, culinary, crafts, and literature.

@@ -373,3 +373,165 @@ export function getThreadData(threadId: number) {
     replies,
   };
 }
+
+export interface Board {
+  id: string;
+  name: string;
+  shortcode: string;
+  category: "games" | "tech" | "aesthetics" | "oomf" | "lifestyle";
+  categoryLabel: string;
+  description: string;
+  threadCount: number;
+  postCount: number;
+}
+
+export interface BoardCategory {
+  id: string;
+  name: string;
+  description: string;
+  boards: Board[];
+}
+
+export const boardsData: Board[] = [
+  // Games
+  {
+    id: "mc",
+    shortcode: "mc",
+    name: "Minecraft",
+    category: "games",
+    categoryLabel: "Games",
+    description: "Survival servers, redstone engineering, creative builds & modpacks",
+    threadCount: 150,
+    postCount: 4210,
+  },
+  {
+    id: "tf2",
+    shortcode: "tf2",
+    name: "Team Fortress 2",
+    category: "games",
+    categoryLabel: "Games",
+    description: "Hat trading, class strategies, community servers & highlights",
+    threadCount: 150,
+    postCount: 3890,
+  },
+  {
+    id: "tes",
+    shortcode: "tes",
+    name: "The Elder Scrolls",
+    category: "games",
+    categoryLabel: "Games",
+    description: "Tamriel lore, Skyrim modding, Morrowind builds & Oblivion nostalgia",
+    threadCount: 150,
+    postCount: 2950,
+  },
+  // Tech
+  {
+    id: "ai",
+    shortcode: "ai",
+    name: "Artificial Intelligence",
+    category: "tech",
+    categoryLabel: "Tech",
+    description: "LLMs, neural agents, diffusion art, and machine intelligence research",
+    threadCount: 150,
+    postCount: 5410,
+  },
+  {
+    id: "vibe",
+    shortcode: "vibe",
+    name: "Vibecoding",
+    category: "tech",
+    categoryLabel: "Tech",
+    description: "Flow-state coding, AI pair programming, prompt building & rapid shipping",
+    threadCount: 150,
+    postCount: 3120,
+  },
+  // Aesthetics
+  {
+    id: "moe",
+    shortcode: "moe",
+    name: "Moe",
+    category: "aesthetics",
+    categoryLabel: "Aesthetics",
+    description: "Cute anime aesthetics, cozy illustrations, slice-of-life art & tropes",
+    threadCount: 150,
+    postCount: 4780,
+  },
+  {
+    id: "fa",
+    shortcode: "fa",
+    name: "Character Fanart",
+    category: "aesthetics",
+    categoryLabel: "Aesthetics",
+    description: "Original character illustrations, fan art showcases & digital sketches",
+    threadCount: 150,
+    postCount: 3640,
+  },
+  {
+    id: "aes",
+    shortcode: "aes",
+    name: "Aesthetics",
+    category: "aesthetics",
+    categoryLabel: "Aesthetics",
+    description: "Vaporwave, liminal spaces, design movements & ambient visual culture",
+    threadCount: 150,
+    postCount: 2890,
+  },
+  // Oomf Software
+  {
+    id: "oomfie",
+    shortcode: "oomfie",
+    name: "Oomfie",
+    category: "oomf",
+    categoryLabel: "Oomf Software",
+    description: "Official oomfit ecosystem software, client updates, tools & community suggestions",
+    threadCount: 150,
+    postCount: 1980,
+  },
+  // Lifestyle
+  {
+    id: "fit",
+    shortcode: "fit",
+    name: "Fitness",
+    category: "lifestyle",
+    categoryLabel: "Lifestyle",
+    description: "SFW workouts, routine guides, nutrition science & wholesome gains",
+    threadCount: 150,
+    postCount: 6150,
+  },
+];
+
+export const boardCategories: BoardCategory[] = [
+  {
+    id: "games",
+    name: "Games",
+    description: "Multiplayer titles, classic shooters, and fantasy worlds",
+    boards: boardsData.filter((b) => b.category === "games"),
+  },
+  {
+    id: "tech",
+    name: "Technology",
+    description: "Artificial intelligence, computational agents, and vibecoding",
+    boards: boardsData.filter((b) => b.category === "tech"),
+  },
+  {
+    id: "aesthetics",
+    name: "Aesthetics",
+    description: "Visual design, moe culture, character fan art, and liminal styles",
+    boards: boardsData.filter((b) => b.category === "aesthetics"),
+  },
+];
+
+export function getBoard(codeOrId?: string | null): Board {
+  if (!codeOrId) return boardsData.find((b) => b.id === "mc") || boardsData[0];
+  const query = codeOrId.toLowerCase().replace(/^\/+|\/+$/g, "").trim();
+  return (
+    boardsData.find(
+      (b) =>
+        b.id.toLowerCase() === query ||
+        b.shortcode.toLowerCase() === query ||
+        b.name.toLowerCase() === query ||
+        b.name.toLowerCase().replace(/\s+/g, "") === query
+    ) || boardsData.find((b) => b.id === "mc") || boardsData[0]
+  );
+}
+

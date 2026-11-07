@@ -3,376 +3,439 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import {
-  Search,
-  Sun,
-  Flame,
-  Clock,
-  MessageSquare,
-  Sparkles,
-} from "lucide-react";
+  presets,
+  executeDualSearch,
+  DualSearchResult,
+  Board,
+} from "@/lib/boards";
 
-function TwitterIcon({ className = "h-4 w-4" }: { className?: string }) {
+function TwitterIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.936 9.936 0 0024 4.59z" />
     </svg>
   );
 }
-import { initialPosts } from "@/lib/data";
 
-type CardSize = "compact" | "medium" | "large";
+// Classic 4chan Clover Icon
+function CloverIcon({ className = "h-8 w-8" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 4.5c-1.1-1.7-3.1-2.5-5-2-2.3.6-3.8 2.8-3.5 5.2.3 2.2 2 3.9 4 4.3H12v-7.5zm0 15c-1.1 1.7-3.1 2.5-5 2-2.3-.6-3.8-2.8-3.5-5.2.3-2.2 2-3.9 4-4.3H12v7.5zm7.5-7.5c1.7-1.1 2.5-3.1 2-5-.6-2.3-2.8-3.8-5.2-3.5-2.2.3-3.9 2-4.3 4V12h7.5zm0 0c1.7 1.1 2.5 3.1 2 5-.6 2.3-2.8 3.8-5.2 3.5-2.2-.3-3.9-2-4.3-4V12h7.5z" />
+    </svg>
+  );
+}
+
 type ThemeMode = "classic" | "twitter" | "light";
 
-export default function CatalogPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [cardSize, setCardSize] = useState<CardSize>("medium");
-  const [theme, setTheme] = useState<ThemeMode>("twitter"); // Default to new Twitter theme
-  const [sortBy, setSortBy] = useState<"bump" | "replies" | "recent">("bump");
+export default function HomePage() {
+  const [theme, setTheme] = useState<ThemeMode>("classic");
+  const [activePresetId, setActivePresetId] = useState<string>("default");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Filtering and sorting
-  const filteredPosts = useMemo(() => {
-    let result = initialPosts.filter((post) => {
-      const q = searchQuery.toLowerCase().trim();
-      if (!q) return true;
-      return (
-        post.title.toLowerCase().includes(q) ||
-        post.teaser.toLowerCase().includes(q) ||
-        post.user.username.toLowerCase().includes(q) ||
-        post.id.toString().includes(q) ||
-        post.threadNumber.toString().includes(q)
-      );
+  // Dual search: "/" for curated presets, otherwise Remedy 1 Domain-level categorized search
+  const dualResult: DualSearchResult = useMemo(() => {
+    return executeDualSearch(searchQuery, activePresetId);
+  }, [searchQuery, activePresetId]);
+
+  // Flattened visible boards for top/bottom bracketed global nav
+  const visibleBoards = useMemo(() => {
+    const list = dualResult.categories.flatMap((c) => c.boards);
+    const seen = new Set<string>();
+    return list.filter((b) => {
+      if (seen.has(b.shortcode)) return false;
+      seen.add(b.shortcode);
+      return true;
     });
+  }, [dualResult]);
 
-    if (sortBy === "replies") {
-      result = [...result].sort((a, b) => b.replies - a.replies);
-    } else if (sortBy === "recent") {
-      result = [...result].sort((a, b) => b.id - a.id);
-    }
-    return result;
-  }, [searchQuery, sortBy]);
-
-  // Dimensions per size setting
-  const cardWidthClass = {
-    compact: "w-[145px] text-xs",
-    medium: "w-[180px] text-[13px]",
-    large: "w-[220px] text-sm",
-  }[cardSize];
-
-  const thumbBoxHeight = {
-    compact: "h-[120px]",
-    medium: "h-[150px]",
-    large: "h-[180px]",
-  }[cardSize];
-
-  // Theme styling definitions
-  const themeBg = {
-    classic: "bg-[#FFFFEE] text-[#000000]",
-    twitter: "bg-[#E6ECF0] text-[#14171A]",
-    light: "bg-white text-slate-900",
-  }[theme];
-
-  const headerBg = {
-    classic: "bg-[#F0E0D6] border-[#D9BFB7] text-[#800000]",
-    twitter: "bg-white/95 border-[#E1E8ED] text-[#14171A] shadow-[0_1px_3px_rgba(0,0,0,0.06)]",
-    light: "bg-slate-100/90 border-slate-200 text-slate-800",
+  // Early 2000s CSS style map
+  const themeStyles = {
+    classic: {
+      pageBg: "bg-[#FFFFEE] text-[#000000]",
+      topNav: "bg-[#F0E0D6] border-b border-[#D9BFB7] text-[#800000]",
+      topNavBrackets: "text-[#800000]/60",
+      topNavLink: "text-[#0F0C5D] hover:text-[#D00] hover:underline font-mono",
+      boxBorder: "border-[#D9BFB7] bg-[#FFFFEE]",
+      boxHeader: "bg-[#F0E0D6] border-b border-[#D9BFB7] text-[#800000]",
+      subHeader: "bg-[#FFFFEE] border-b border-[#D9BFB7]/60 text-[#444444]",
+      categoryHeader: "text-[#800000] border-b border-[#D9BFB7]",
+      boardLink: "text-[#0F0C5D] hover:text-[#D00] hover:underline",
+      presetActive: "font-bold text-[#800000] underline",
+      presetInactive: "text-[#0F0C5D] hover:underline hover:text-[#D00]",
+      inputBg: "bg-white border-[#D9BFB7] text-black focus:border-[#800000]",
+      badgePreset: "bg-[#800000]/10 text-[#800000] border border-[#800000]/20",
+      badgeGeneric: "bg-[#0F0C5D]/10 text-[#0F0C5D] border border-[#0F0C5D]/20",
+      footer: "text-[#707070]",
+      footerLink: "text-[#0F0C5D] hover:text-[#D00] hover:underline",
+      logoColor: "text-[#117743]",
+    },
+    twitter: {
+      pageBg: "bg-[#E6ECF0] text-[#14171A]",
+      topNav: "bg-white border-b border-[#E1E8ED] text-[#657786]",
+      topNavBrackets: "text-[#657786]/60",
+      topNavLink: "text-[#1DA1F2] hover:underline font-mono",
+      boxBorder: "border-[#E1E8ED] bg-white",
+      boxHeader: "bg-[#F5F8FA] border-b border-[#E1E8ED] text-[#14171A]",
+      subHeader: "bg-white border-b border-[#E1E8ED] text-[#657786]",
+      categoryHeader: "text-[#14171A] border-b border-[#E1E8ED]",
+      boardLink: "text-[#1DA1F2] hover:underline",
+      presetActive: "font-bold text-[#1DA1F2] underline",
+      presetInactive: "text-[#657786] hover:text-[#1DA1F2] hover:underline",
+      inputBg: "bg-[#F5F8FA] border-[#E1E8ED] text-[#14171A] focus:border-[#1DA1F2] focus:bg-white",
+      badgePreset: "bg-[#1DA1F2]/10 text-[#1DA1F2] border border-[#1DA1F2]/20",
+      badgeGeneric: "bg-slate-200 text-slate-800 border border-slate-300",
+      footer: "text-[#657786]",
+      footerLink: "text-[#1DA1F2] hover:underline",
+      logoColor: "text-[#1DA1F2]",
+    },
+    light: {
+      pageBg: "bg-slate-50 text-slate-800",
+      topNav: "bg-white border-b border-slate-200 text-slate-700",
+      topNavBrackets: "text-slate-400",
+      topNavLink: "text-emerald-700 hover:underline font-mono",
+      boxBorder: "border-slate-300 bg-white",
+      boxHeader: "bg-slate-100 border-b border-slate-300 text-slate-800",
+      subHeader: "bg-slate-50 border-b border-slate-200 text-slate-600",
+      categoryHeader: "text-slate-900 border-b border-slate-200",
+      boardLink: "text-emerald-700 hover:underline",
+      presetActive: "font-bold text-emerald-700 underline",
+      presetInactive: "text-slate-600 hover:text-emerald-700 hover:underline",
+      inputBg: "bg-white border-slate-300 text-slate-800 focus:border-emerald-600",
+      badgePreset: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+      badgeGeneric: "bg-slate-100 text-slate-700 border border-slate-200",
+      footer: "text-slate-500",
+      footerLink: "text-emerald-700 hover:underline",
+      logoColor: "text-emerald-700",
+    },
   }[theme];
 
   return (
-    <div className={`min-h-screen ${themeBg} flex flex-col font-sans transition-colors duration-150`}>
-      {/* Top Banner / Board Header */}
-      <header className={`sticky top-0 z-30 border-b backdrop-blur-md px-4 py-2.5 shadow-sm ${headerBg}`}>
-        <div className="mx-auto flex max-w-[1920px] flex-wrap items-center justify-between gap-3">
-          {/* Board Title & Brand */}
-          <div className="flex items-center gap-3">
-            <span
-              className={`flex h-8 w-8 items-center justify-center rounded-full font-bold text-sm ${
-                theme === "twitter"
-                  ? "bg-[#1DA1F2] text-white shadow-sm"
-                  : "bg-emerald-500/20 text-emerald-700"
+    <div className={`min-h-screen ${themeStyles.pageBg} flex flex-col font-sans transition-colors duration-100`}>
+      {/* 1. TOP GLOBAL NAVIGATION BAR (4chan.org style) */}
+      <header className={`px-2 py-1.5 text-xs text-center border-b ${themeStyles.topNav}`}>
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-2 text-[11px]">
+          {/* Dynamic Bracketed Shortcode Links */}
+          <nav className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono">
+              <span className={themeStyles.topNavBrackets}>[ </span>
+              {visibleBoards.map((b, i) => (
+                <React.Fragment key={b.id}>
+                  <Link
+                    href={`/catalog?b=${b.shortcode}`}
+                    className={themeStyles.topNavLink}
+                    title={`${b.name}`}
+                  >
+                    {b.shortcode}
+                  </Link>
+                  {i < visibleBoards.length - 1 && (
+                    <span className="opacity-40 mx-0.5">/</span>
+                  )}
+                </React.Fragment>
+              ))}
+              <span className={themeStyles.topNavBrackets}> ]</span>
+            </span>
+          </nav>
+
+          {/* Catalog Link & Theme Toggle */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/catalog"
+              className={`hover:underline font-semibold ${
+                theme === "classic"
+                  ? "text-[#800000]"
+                  : theme === "twitter"
+                  ? "text-[#1DA1F2]"
+                  : "text-emerald-700"
               }`}
             >
-              {theme === "twitter" ? (
-                <TwitterIcon className="h-4.5 w-4.5 fill-current" />
-              ) : (
-                "/fit/"
-              )}
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold tracking-tight text-base sm:text-lg">
-                  oomfit
-                </h1>
-                <span className="text-xs opacity-60 font-mono">Catalog</span>
-              </div>
-              <p className="text-[11px] opacity-70">
-                SFW Fitness Community • Showing {filteredPosts.length} of {initialPosts.length} threads
-              </p>
-            </div>
-          </div>
+              [Catalog]
+            </Link>
 
-          {/* Search Bar */}
-          <div className="relative min-w-[200px] flex-1 max-w-md">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-50" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search catalog (e.g. IronLifter, #42, routine)..."
-              className={`w-full rounded-full border py-1.5 pl-8 pr-3 text-xs outline-none focus:ring-1 ${
-                theme === "twitter"
-                  ? "border-[#E1E8ED] bg-[#F5F8FA] text-[#14171A] placeholder-[#657786] focus:border-[#1DA1F2] focus:ring-[#1DA1F2] focus:bg-white"
-                  : theme === "classic"
-                  ? "border-[#D9BFB7] bg-white text-black placeholder-zinc-400 focus:border-[#800000] focus:ring-[#800000]"
-                  : "border-slate-300 bg-white text-black placeholder-slate-400 focus:border-slate-500 focus:ring-slate-400"
-              }`}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                aria-label="Clear search"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs opacity-60 hover:opacity-100"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+            <span className="opacity-30">|</span>
 
-          {/* Controls: Sorting, Size, Theme */}
-          <div className="flex items-center gap-2 text-xs">
-            {/* Sort Buttons */}
-            <div className="flex items-center rounded-full border border-current/20 p-0.5">
-              <button
-                onClick={() => setSortBy("bump")}
-                className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition-all ${
-                  sortBy === "bump"
-                    ? theme === "twitter"
-                      ? "bg-[#1DA1F2] text-white font-medium"
-                      : "bg-emerald-600 text-white font-medium"
-                    : "opacity-70 hover:opacity-100"
-                }`}
-                title="Bump Order"
-              >
-                <Flame className="h-3 w-3" />
-                <span className="hidden sm:inline">Bump</span>
-              </button>
-              <button
-                onClick={() => setSortBy("replies")}
-                className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition-all ${
-                  sortBy === "replies"
-                    ? theme === "twitter"
-                      ? "bg-[#1DA1F2] text-white font-medium"
-                      : "bg-emerald-600 text-white font-medium"
-                    : "opacity-70 hover:opacity-100"
-                }`}
-                title="Reply Count"
-              >
-                <MessageSquare className="h-3 w-3" />
-                <span className="hidden sm:inline">Replies</span>
-              </button>
-              <button
-                onClick={() => setSortBy("recent")}
-                className={`flex items-center gap-1 rounded-full px-2.5 py-1 transition-all ${
-                  sortBy === "recent"
-                    ? theme === "twitter"
-                      ? "bg-[#1DA1F2] text-white font-medium"
-                      : "bg-emerald-600 text-white font-medium"
-                    : "opacity-70 hover:opacity-100"
-                }`}
-                title="Creation Time"
-              >
-                <Clock className="h-3 w-3" />
-                <span className="hidden sm:inline">Recent</span>
-              </button>
-            </div>
-
-            {/* Thumbnail Size Selector */}
-            <div className="hidden sm:flex items-center rounded-full border border-current/20 p-0.5">
-              <button
-                onClick={() => setCardSize("compact")}
-                className={`rounded-full px-2 py-0.5 text-[11px] ${
-                  cardSize === "compact"
-                    ? theme === "twitter"
-                      ? "bg-[#1DA1F2] text-white font-medium"
-                      : "bg-emerald-600 text-white font-medium"
-                    : "opacity-70 hover:opacity-100"
-                }`}
-              >
-                S
-              </button>
-              <button
-                onClick={() => setCardSize("medium")}
-                className={`rounded-full px-2 py-0.5 text-[11px] ${
-                  cardSize === "medium"
-                    ? theme === "twitter"
-                      ? "bg-[#1DA1F2] text-white font-medium"
-                      : "bg-emerald-600 text-white font-medium"
-                    : "opacity-70 hover:opacity-100"
-                }`}
-              >
-                M
-              </button>
-              <button
-                onClick={() => setCardSize("large")}
-                className={`rounded-full px-2 py-0.5 text-[11px] ${
-                  cardSize === "large"
-                    ? theme === "twitter"
-                      ? "bg-[#1DA1F2] text-white font-medium"
-                      : "bg-emerald-600 text-white font-medium"
-                    : "opacity-70 hover:opacity-100"
-                }`}
-              >
-                L
-              </button>
-            </div>
-
-            {/* Theme Toggle (Classic -> Twitter -> Light) */}
             <button
               onClick={() => {
                 const next: ThemeMode =
-                  theme === "twitter" ? "classic" : theme === "classic" ? "light" : "twitter";
+                  theme === "classic" ? "twitter" : theme === "twitter" ? "light" : "classic";
                 setTheme(next);
               }}
-              className="flex items-center gap-1.5 rounded-full border border-current/20 px-3 py-1 text-xs font-medium opacity-80 hover:opacity-100 transition-all"
-              title="Cycle Theme: Twitter -> Classic -> Light"
+              className="opacity-75 hover:opacity-100 text-[10px] cursor-pointer flex items-center gap-1"
+              title="Switch theme"
             >
-              {theme === "twitter" ? (
-                <>
-                  <TwitterIcon className="h-3.5 w-3.5 text-[#1DA1F2] fill-[#1DA1F2]" />
-                  <span className="font-semibold text-[#1DA1F2]">Twitter</span>
-                </>
-              ) : theme === "classic" ? (
-                <>
-                  <Sparkles className="h-3.5 w-3.5 text-amber-700" />
-                  <span>Classic</span>
-                </>
+              {theme === "classic" ? (
+                <span>[Theme: Classic]</span>
+              ) : theme === "twitter" ? (
+                <span>[Theme: Twitter]</span>
               ) : (
-                <>
-                  <Sun className="h-3.5 w-3.5 text-amber-600" />
-                  <span>Light</span>
-                </>
+                <span>[Theme: Light]</span>
               )}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Catalog Flexible Grid Container */}
-      <main className="flex-1 p-3 sm:p-6 max-w-[1920px] mx-auto w-full">
-        {filteredPosts.length === 0 ? (
-          <div className="py-24 text-center">
-            <p className="text-sm opacity-60">No threads match &quot;{searchQuery}&quot;</p>
-            <button
-              onClick={() => setSearchQuery("")}
-              className={`mt-3 text-xs underline ${
-                theme === "twitter" ? "text-[#1DA1F2]" : "text-emerald-600"
-              }`}
-            >
-              Clear search filter
-            </button>
+      {/* 2. MAIN CENTERED CONTENT CONTAINER */}
+      <main className="flex-1 w-full max-w-[800px] mx-auto px-3 sm:px-4 py-5 sm:py-7 space-y-4">
+        {/* LOGO & SITE TITLE */}
+        <div className="text-center space-y-1 select-none">
+          <div className="flex items-center justify-center gap-2">
+            <div className={themeStyles.logoColor}>
+              {theme === "twitter" ? (
+                <TwitterIcon className="h-8 w-8" />
+              ) : (
+                <CloverIcon className="h-9 w-9" />
+              )}
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-serif">
+              oomfit
+            </h1>
           </div>
-        ) : (
-          <div className="flex flex-wrap items-start justify-center gap-x-4 gap-y-7 sm:gap-x-5 sm:gap-y-8">
-            {filteredPosts.map((post) => (
-              <Link
-                key={post.id}
-                href={`/thread/${post.id}`}
-                className={`group flex flex-col items-center text-center cursor-pointer select-none transition-transform duration-100 ${cardWidthClass}`}
-                title={`No. ${post.threadNumber}\n${post.title}`}
+        </div>
+
+        {/* 3. THE BOARDS DIRECTORY BOX */}
+        <div className={`border rounded-[3px] shadow-2xs overflow-hidden ${themeStyles.boxBorder}`}>
+          {/* Box Header Bar */}
+          <div className={`py-1.5 px-3 flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wide ${themeStyles.boxHeader}`}>
+            <span>
+              {dualResult.mode === "preset"
+                ? `Boards — ${dualResult.matchedPreset?.name || "Directory"}`
+                : `Search: "${searchQuery}"`}
+            </span>
+            <span className="text-[10px] font-mono font-normal opacity-70">
+              {visibleBoards.length} boards visible
+            </span>
+          </div>
+
+          {/* Controls Bar: Preset Pills + Dual Search Field */}
+          <div className={`p-2.5 sm:px-4 text-xs flex flex-col sm:flex-row items-center justify-between gap-2.5 ${themeStyles.subHeader}`}>
+            {/* Quick Preset Text Buttons */}
+            <div className="flex flex-wrap items-center gap-1 text-[11px]">
+              <span className="font-semibold opacity-60 mr-1">Presets:</span>
+              {presets.slice(0, 6).map((p) => {
+                const isActive =
+                  dualResult.mode === "preset" &&
+                  (searchQuery === p.command || activePresetId === p.id);
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setActivePresetId(p.id);
+                      setSearchQuery(p.command);
+                    }}
+                    className={`cursor-pointer px-1 py-0.5 rounded text-[11px] ${
+                      isActive ? themeStyles.presetActive : themeStyles.presetInactive
+                    }`}
+                    title={p.description}
+                  >
+                    [{p.name}]
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Dual Search Input */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <label htmlFor="board-filter" className="text-[11px] font-mono opacity-70 whitespace-nowrap">
+                Search:
+              </label>
+              <div className="relative flex-1 sm:w-56">
+                <input
+                  id="board-filter"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="e.g. /gaming or shooter, eldren..."
+                  className={`w-full border rounded-[2px] px-2 py-0.5 text-xs outline-none font-mono ${themeStyles.inputBg}`}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    aria-label="Clear filter"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] opacity-60 hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* DUAL SEARCH STATUS / FEEDBACK BANNER */}
+          {searchQuery && (
+            <div className="px-4 py-1.5 text-[11px] font-mono bg-black/5 flex flex-wrap items-center justify-between gap-2 border-b border-current/10">
+              <div className="flex items-center gap-2">
+                {dualResult.mode === "preset" ? (
+                  <>
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${themeStyles.badgePreset}`}>
+                      PRESET: {dualResult.matchedPreset?.command}
+                    </span>
+                    <span>
+                      Curated Preset &bull; <strong>{dualResult.matchedPreset?.name}</strong> ({dualResult.matchedPreset?.description})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${themeStyles.badgeGeneric}`}>
+                      DOMAIN CLUSTERING
+                    </span>
+                    <span>
+                      Results for &quot;<strong>{searchQuery}</strong>&quot; &bull; Grouped by Domain into {dualResult.categories.length} categories ({visibleBoards.length} boards)
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => setSearchQuery("")}
+                className="underline opacity-70 hover:opacity-100 text-[10px] cursor-pointer"
               >
-                {/* 1. IMAGE PLACEHOLDER (Realistic aspect ratios bounded inside catalog box) */}
-                <div
-                  className={`w-full flex items-center justify-center mb-1.5 ${thumbBoxHeight}`}
-                >
-                  <div
-                    className={`relative overflow-hidden rounded-lg bg-gradient-to-br ${post.colorTone} flex flex-col items-center justify-center border border-black/10 shadow-sm transition-transform duration-150 group-hover:scale-[1.03] group-hover:shadow-md ${post.aspect.ratioClass}`}
-                  >
-                    {/* R / I metadata tag overlay */}
-                    <div className="absolute top-1 right-1 rounded-full bg-black/75 px-1.5 py-0.5 text-[8px] font-mono text-white backdrop-blur-[2px]">
-                      R: {post.replies} / I: {post.images}
-                    </div>
+                [reset]
+              </button>
+            </div>
+          )}
 
-                    <span className="text-[9px] uppercase font-mono tracking-wider opacity-70 text-zinc-800">
-                      IMG #{post.id}
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black tracking-tight font-mono text-zinc-950">
-                      #{post.id}
-                    </span>
-                    <span className="text-[8.5px] font-mono opacity-70 text-zinc-800">
-                      {post.aspect.dimLabel}
-                    </span>
+          {/* MAIN CONTENT AREA: PRESERVES 4CHAN CATEGORY COLUMN UI 100% OF THE TIME */}
+          <div className="p-4 sm:p-5">
+            {dualResult.categories.length === 0 ? (
+              <div className="p-8 text-center text-xs opacity-60 font-mono">
+                No boards found matching &quot;{searchQuery}&quot;.
+              </div>
+            ) : (
+              <div
+                className={`grid gap-6 items-start ${
+                  dualResult.categories.length === 1
+                    ? "grid-cols-1"
+                    : dualResult.categories.length === 2
+                    ? "grid-cols-1 sm:grid-cols-2"
+                    : dualResult.categories.length === 3
+                    ? "grid-cols-1 sm:grid-cols-3"
+                    : "grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+                }`}
+              >
+                {dualResult.categories.map((category, idx) => (
+                  <div key={`${category.name}-${idx}`} className="space-y-1.5">
+                    {/* Category Title Header Bar */}
+                    <h2 className={`text-xs font-bold uppercase pb-1 mb-2 tracking-wider ${themeStyles.categoryHeader}`}>
+                      {category.name}
+                    </h2>
+
+                    {/* Clean Text Hyperlinks (4chan.org style) */}
+                    <ul className="space-y-1 text-xs">
+                      {category.boards.map((board) => (
+                        <li key={board.id} className="truncate">
+                          <Link
+                            href={`/catalog?b=${board.shortcode}`}
+                            className={`inline-block ${themeStyles.boardLink}`}
+                            title={`/${board.shortcode}/ - ${board.name} (${board.description})`}
+                          >
+                            {board.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </div>
-
-                {/* Author Avatar + Name horizontally aligned */}
-                <div className="flex items-center gap-1.5 text-[11px] mb-1 opacity-80 group-hover:opacity-100">
-                  <div
-                    className={`w-4 h-4 rounded-full bg-gradient-to-br ${post.user.avatarBg} flex items-center justify-center text-[7px] font-bold text-white shadow-xs shrink-0`}
-                  >
-                    {post.user.initials}
-                  </div>
-                  <span
-                    className={`font-semibold ${
-                      theme === "twitter"
-                        ? "text-[#14171A] group-hover:text-[#1DA1F2]"
-                        : "text-emerald-800"
-                    }`}
-                  >
-                    {post.user.username}
-                  </span>
-                  <span
-                    className={`text-[10px] font-mono ${
-                      theme === "twitter" ? "text-[#657786]" : "opacity-50"
-                    }`}
-                  >
-                    • {post.timestamp}
-                  </span>
-                </div>
-
-                {/* Quick stats under image */}
-                <div
-                  className={`text-[10px] font-mono mb-1 ${
-                    theme === "twitter" ? "text-[#657786]" : "opacity-60"
-                  }`}
-                >
-                  R: <span className="font-semibold">{post.replies}</span> / I:{" "}
-                  <span className="font-semibold">{post.images}</span>
-                </div>
-
-                {/* 2. TITLE (Directly below image, bold, sitting on page background) */}
-                <h2
-                  className={`w-full font-bold leading-tight line-clamp-2 mb-1 transition-colors ${
-                    theme === "classic"
-                      ? "text-[#0F0C5D] group-hover:text-[#D00] group-hover:underline"
-                      : theme === "twitter"
-                      ? "text-[#14171A] group-hover:text-[#1DA1F2]"
-                      : "text-slate-900 group-hover:text-emerald-700"
-                  }`}
-                >
-                  {post.title}
-                </h2>
-
-                {/* 3. POST TEXT (Teaser entries sitting on page background) */}
-                <p
-                  className={`w-full line-clamp-4 leading-relaxed text-[11px] sm:text-[12px] ${
-                    theme === "classic"
-                      ? "text-[#111] opacity-80"
-                      : theme === "twitter"
-                      ? "text-[#657786]"
-                      : "text-slate-600 opacity-80"
-                  }`}
-                >
-                  {post.teaser}
-                </p>
-              </Link>
-            ))}
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </main>
+        </div>
 
-      {/* Catalog Footer */}
-      <footer className={`border-t py-6 text-center text-xs opacity-60 ${headerBg}`}>
-        <p>oomfit Catalog • 150 Threads • Themes: Twitter, Classic & Light • Reflow (67% - 150%)</p>
-      </footer>
+        {/* 4. DEV REFERENCE: PRESET COMMANDS TIP BOX */}
+        <div className={`border rounded-[3px] shadow-2xs overflow-hidden ${themeStyles.boxBorder}`}>
+          <div className={`py-1 px-3 text-xs font-bold uppercase tracking-wide flex items-center justify-between ${themeStyles.boxHeader}`}>
+            <span>[Dev Guide] Preset Commands</span>
+            <span className="opacity-70 text-[10px] font-mono font-normal">
+              Prefix with / in search box
+            </span>
+          </div>
+
+          <div className="p-3 sm:p-4 text-xs space-y-2.5">
+            <p className="opacity-80 text-[11px] leading-relaxed">
+              <strong>Dual Search active:</strong> Type a <code className="font-mono font-bold">/</code> command to immediately load a curated preset with structured categories. Type without <code className="font-mono font-bold">/</code> for direct linguistic search without fake categories across all 105 boards. Click any command below to test:
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
+              {presets.map((p) => {
+                const isCurrent =
+                  searchQuery === p.command ||
+                  (dualResult.mode === "preset" && dualResult.matchedPreset?.id === p.id);
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setSearchQuery(p.command);
+                      setActivePresetId(p.id);
+                    }}
+                    className={`text-left p-1.5 rounded-[2px] border transition-colors cursor-pointer text-xs ${
+                      isCurrent
+                        ? "bg-[#D00]/10 border-[#D00] font-bold text-[#D00]"
+                        : "border-current/10 hover:bg-current/5"
+                    }`}
+                    title={p.description}
+                  >
+                    <div className="font-mono font-bold text-[11px]">{p.command}</div>
+                    <div className="text-[10px] opacity-70 truncate">{p.name}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* 5. FOOTER (Early 2000s 4chan.org Bottom Nav & Legal Disclaimer) */}
+        <footer className={`pt-2 pb-8 text-center text-xs space-y-3 ${themeStyles.footer}`}>
+          {/* Repeated Global Shortcode Links */}
+          <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
+            <span className="font-mono">
+              <span className={themeStyles.topNavBrackets}>[ </span>
+              {visibleBoards.map((b, i) => (
+                <React.Fragment key={b.id}>
+                  <Link
+                    href={`/catalog?b=${b.shortcode}`}
+                    className={themeStyles.topNavLink}
+                  >
+                    {b.shortcode}
+                  </Link>
+                  {i < visibleBoards.length - 1 && (
+                    <span className="opacity-40 mx-0.5">/</span>
+                  )}
+                </React.Fragment>
+              ))}
+              <span className={themeStyles.topNavBrackets}> ]</span>
+            </span>
+          </div>
+
+          {/* Text Nav Links */}
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+            <Link href="/" className={themeStyles.footerLink}>
+              Home
+            </Link>
+            <span>-</span>
+            <Link href="/catalog" className={themeStyles.footerLink}>
+              Catalog
+            </Link>
+            <span>-</span>
+            <a href="#rules" className={themeStyles.footerLink}>
+              Rules
+            </a>
+            <span>-</span>
+            <a href="#faq" className={themeStyles.footerLink}>
+              FAQ
+            </a>
+            <span>-</span>
+            <a href="#feedback" className={themeStyles.footerLink}>
+              Feedback
+            </a>
+          </div>
+
+          {/* Early 2000s Disclaimer */}
+          <p className="text-[11px] opacity-75 max-w-lg mx-auto">
+            All trademarks and copyrights on this page are owned by their respective parties.
+            Images uploaded are the responsibility of the poster.
+          </p>
+        </footer>
+      </main>
     </div>
   );
 }
