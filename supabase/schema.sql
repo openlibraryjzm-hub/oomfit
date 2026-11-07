@@ -12,13 +12,14 @@ create table if not exists public.boards (
   sub_category text default 'User Created',
   description text default '',
   tags text[] default '{}',
+  last_post_number bigint default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 2. THREADS TABLE
 create table if not exists public.threads (
   id bigint generated always as identity primary key,
-  thread_number bigint unique not null,
+  thread_number bigint not null,
   board_id text not null references public.boards(shortcode) on delete cascade,
   title text default '',
   teaser text default '',
@@ -36,10 +37,14 @@ create table if not exists public.threads (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Index for per-board thread numbers
+create index if not exists idx_threads_board_number on public.threads(board_id, thread_number);
+
 -- 3. REPLIES TABLE
 create table if not exists public.replies (
   id bigint generated always as identity primary key,
-  post_number bigint unique not null,
+  post_number bigint not null,
+  board_id text references public.boards(shortcode) on delete cascade,
   thread_id bigint not null references public.threads(id) on delete cascade,
   author_id text default 'u_anon',
   author_name text default 'Anonymous',
@@ -51,6 +56,23 @@ create table if not exists public.replies (
   file_metadata jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Index for per-board reply numbers
+create index if not exists idx_replies_board_number on public.replies(board_id, post_number);
+
+-- 4. ATOMIC PER-BOARD POST NUMBER GENERATOR
+create or replace function next_board_post_number(target_board text)
+returns bigint as $$
+declare
+  next_val bigint;
+begin
+  update public.boards
+  set last_post_number = coalesce(last_post_number, 0) + 1
+  where shortcode = target_board
+  returning last_post_number into next_val;
+  return next_val;
+end;
+$$ language plpgsql;
 
 -- 4. ROW LEVEL SECURITY (RLS) POLICIES
 -- Allow everyone to read boards, threads, and replies

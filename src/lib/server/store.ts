@@ -300,8 +300,22 @@ export async function createThread(data: {
   const dayStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()];
   const timestamp = `${dateStr}(${dayStr})${timeStr}`;
 
-  // Unique post number based on timestamp sequence
-  const threadNumber = 1000000 + Math.floor(Date.now() % 10000000);
+  // Atomic sequential post number per board (starts at 1)
+  let threadNumber: number;
+  const { data: seqData, error: seqErr } = await supabase.rpc("next_board_post_number", {
+    target_board: cleanBoard,
+  });
+
+  if (seqErr || !seqData) {
+    console.warn("RPC next_board_post_number warning, falling back to count:", seqErr?.message);
+    const { count } = await supabase
+      .from("threads")
+      .select("*", { count: "exact", head: true })
+      .eq("board_id", cleanBoard);
+    threadNumber = (count || 0) + 1;
+  } else {
+    threadNumber = Number(seqData);
+  }
 
   const authorName = data.user?.username?.trim() || "Anonymous";
   const authorInitials =
@@ -410,7 +424,24 @@ export async function createReply(data: {
   const dayStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][now.getDay()];
   const timestamp = `${dateStr}(${dayStr})${timeStr}`;
 
-  const postNumber = 1000000 + Math.floor(Date.now() % 10000000);
+  // Atomic sequential post number from the parent board's sequence
+  const boardCode = threadRow.board_id;
+  let postNumber: number;
+  const { data: seqData, error: seqErr } = await supabase.rpc("next_board_post_number", {
+    target_board: boardCode,
+  });
+
+  if (seqErr || !seqData) {
+    console.warn("RPC next_board_post_number warning in reply, falling back to count:", seqErr?.message);
+    const { count } = await supabase
+      .from("replies")
+      .select("*", { count: "exact", head: true })
+      .eq("thread_id", data.threadId);
+    postNumber = Number(threadRow.thread_number) + (count || 0) + 1;
+  } else {
+    postNumber = Number(seqData);
+  }
+
   const authorName = data.user?.username?.trim() || "Anonymous";
   const authorInitials =
     data.user?.initials || (authorName.length >= 2 ? authorName.slice(0, 2).toUpperCase() : "AN");
@@ -439,6 +470,7 @@ export async function createReply(data: {
     .from("replies")
     .insert({
       post_number: postNumber,
+      board_id: boardCode,
       thread_id: data.threadId,
       author_id: data.user?.id || `u_${Date.now()}`,
       author_name: authorName,

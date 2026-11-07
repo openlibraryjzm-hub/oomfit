@@ -101,6 +101,7 @@ oomfit/
    - The application connects to **Supabase PostgreSQL** via `src/lib/server/store.ts` and `src/lib/supabase.ts`.
    - The database stores custom boards, threads, replies, and file metadata.
    - Boards start completely empty by default until real users or bots post discussions.
+   - **Board-Scoped Monotonic Post Numbering:** Each board maintains its own atomic sequence starting at `1` (`next_board_post_number`). Threads and replies share this sequence per board. Post numbers are strictly monotonic and never decrement on deletion to preserve quote (`>>No.`) and permalink integrity.
 4. **Cold-Start Bot Posters:**
    - An agentic bot generator in `src/lib/server/bots.ts` provides contextual threads and replies on demand (`[Bot Seed]` in catalog, `[Bot Reply]` in threads) to simulate active communities during cold start.
 5. **Available Themes:**

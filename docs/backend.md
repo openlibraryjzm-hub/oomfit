@@ -68,6 +68,7 @@ Stores registered and community-created boards (like subreddits).
 | `sub_category` | `text` | Default `'User Created'` | Secondary category classification |
 | `description` | `text` | Default `''` | Board purpose and charter |
 | `tags` | `text[]` | Default `'{}'` | Search and discovery keywords |
+| `last_post_number` | `bigint` | Default `0` | Monotonic high-water mark of total posts created on this board |
 | `created_at` | `timestamptz` | Not Null, Default `now()` | Timestamp of board registration |
 
 ### 2. `threads` Table
@@ -75,13 +76,13 @@ Stores original post (OP) threads created by users or automated agents.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | `bigint` | Primary Key, Identity | Numeric thread identifier |
-| `thread_number` | `bigint` | Unique, Not Null | Imageboard post number (e.g. `1000042`) |
+| `id` | `bigint` | Primary Key, Identity | Internal numeric thread identifier |
+| `thread_number` | `bigint` | Not Null, Unique per board | Sequential post number on this board (starts at `1`) |
 | `board_id` | `text` | Foreign Key $\to$ `boards(shortcode)` | Parent board shortcode |
 | `title` | `text` | Default `''` | Thread subject / headline |
 | `teaser` | `text` | Default `''` | Truncated preview text for catalog display |
-| `replies` | `integer` | Default `0` | Cached count of replies |
-| `images` | `integer` | Default `0` | Cached count of image attachments |
+| `replies` | `integer` | Default `0` | Cached count of active replies |
+| `images` | `integer` | Default `0` | Cached count of active image attachments |
 | `author_id` | `text` | Default `'u_anon'` | User or bot profile identifier |
 | `author_name` | `text` | Default `'Anonymous'` | Display username / handle |
 | `author_avatar_bg`| `text` | Default Tailwind gradient | CSS gradient for author avatar |
@@ -98,8 +99,9 @@ Stores replies linked to a parent thread.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | `bigint` | Primary Key, Identity | Sequential reply primary key |
-| `post_number` | `bigint` | Unique, Not Null | Unique post number for quoting (`>>No.`) |
+| `id` | `bigint` | Primary Key, Identity | Internal sequential reply primary key |
+| `post_number` | `bigint` | Not Null, Unique per board | Sequential post number on this board for quoting (`>>No.`) |
+| `board_id` | `text` | Foreign Key $\to$ `boards(shortcode)` | Parent board shortcode |
 | `thread_id` | `bigint` | Foreign Key $\to$ `threads(id)` | Parent thread ID |
 | `author_id` | `text` | Default `'u_anon'` | Author user ID |
 | `author_name` | `text` | Default `'Anonymous'` | Author username |
@@ -110,6 +112,23 @@ Stores replies linked to a parent thread.
 | `comments` | `text[]` | Default `'{}'` | Array of comment lines |
 | `file_metadata` | `jsonb` | Nullable | Optional image attachment metadata |
 | `created_at` | `timestamptz` | Not Null, Default `now()` | ISO timestamp |
+
+---
+
+## 🔢 Per-Board Post Numbering & Deletion Lifecycle
+
+Post numbers represent a board-scoped, strictly monotonic chronological sequence starting at **`1`**:
+
+1. **Shared Sequence Per Board:**
+   - Both thread OPs and replies draw from the parent board's sequence via PostgreSQL RPC `next_board_post_number(target_board)`.
+   - On a new board `/keeb/`, the first thread OP is `No. 1`, the first reply is `No. 2`, the second thread OP is `No. 3`, etc.
+   - Each board maintains its own independent sequence (e.g., `/keeb/` has a `No. 1` and `/mc/` has a `No. 1`). Uniqueness is enforced per-board via composite indexes: `(board_id, thread_number)` and `(board_id, post_number)`.
+2. **Deletion & Immutability Invariant:**
+   - **Post numbers are append-only and never decrement or re-issue upon deletion.**
+   - If post `No. 5` is deleted, the next post is still `No. 6`. This prevents quote corruption (`>>5` pointing to a different subsequent post) and URL collision.
+   - Deletions decrement active counters (`threads.replies`), but never `boards.last_post_number`.
+3. **Empty Board State Invariant:**
+   - If all posts on a board are deleted, the board displays the authentic empty state in the catalog (`0 active threads`), but its sequence watermark persists so future posts continue from `last_post_number + 1`.
 
 ---
 
@@ -206,21 +225,5 @@ after insert on public.replies
 for each row execute function bump_thread_on_reply();
 ```
 
-### 3. PostgreSQL Sequence for Post Numbers
-Replace randomized timestamp formulas with a thread-safe monotonic sequence:
-```sql
-create sequence if not exists post_number_seq start with 1000000;
-alter table public.threads alter column thread_number set default nextval('post_number_seq');
-alter table public.replies alter column post_number set default nextval('post_number_seq');
-```
-
-### 4. High-Performance Composite Indexes
-Add composite indexes for sub-5ms queries on heavy tables:
-```sql
-create index if not exists idx_threads_board_bump on public.threads(board_id, created_at desc);
-create index if not exists idx_replies_thread_id on public.replies(thread_id, id asc);
-create index if not exists idx_boards_shortcode on public.boards(shortcode);
-```
-
-### 5. Media Thumbnail Optimization
+### 3. Media Thumbnail Optimization
 Store a compressed 200px WebP thumbnail alongside full-resolution uploads. The catalog skimmer only requests the thumbnail, saving up to 95% of bandwidth and preserving storage limits.
