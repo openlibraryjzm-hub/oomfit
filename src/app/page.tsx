@@ -3,14 +3,13 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
-  presets,
   executeDualSearch,
   DualSearchResult,
   Board,
   allBoards,
 } from "@/lib/boards";
 import { fetchBoards, createCustomBoard } from "@/lib/client-api";
-import { FolderPlus, Plus, X } from "lucide-react";
+import { FolderPlus, Plus, X, Sparkles, ArrowRight } from "lucide-react";
 import { ProfileBadge } from "@/lib/user";
 
 function TwitterIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -32,11 +31,37 @@ function CloverIcon({ className = "h-8 w-8" }: { className?: string }) {
 
 type ThemeMode = "classic" | "twitter" | "light";
 
+function BoardPlaceholderArt({ board }: { board: Board }) {
+  const domainColors: Record<string, { bg: string; text: string; border: string }> = {
+    Gaming: { bg: "from-amber-600/20 to-orange-600/30", text: "text-amber-600", border: "border-amber-500/30" },
+    Technology: { bg: "from-emerald-600/20 to-teal-600/30", text: "text-emerald-600", border: "border-emerald-500/30" },
+    Aesthetics: { bg: "from-purple-600/20 to-pink-600/30", text: "text-purple-600", border: "border-purple-500/30" },
+    Culture: { bg: "from-rose-600/20 to-red-600/30", text: "text-rose-600", border: "border-rose-500/30" },
+    Default: { bg: "from-blue-600/20 to-indigo-600/30", text: "text-blue-600", border: "border-blue-500/30" },
+  };
+  const color = domainColors[board.domain] || domainColors.Default;
+
+  return (
+    <div className={`w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-xs border ${color.border} bg-gradient-to-br ${color.bg} p-2 flex flex-col items-center justify-between font-mono relative overflow-hidden select-none shadow-2xs`}>
+      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:6px_6px] pointer-events-none" />
+      <span className="text-[9px] uppercase tracking-wider font-bold opacity-60 self-start z-10">
+        /{board.shortcode}/
+      </span>
+      <div className={`text-xl sm:text-2xl font-extrabold tracking-tighter ${color.text} z-10`}>
+        {board.shortcode.toUpperCase()}
+      </div>
+      <span className="text-[8px] font-sans opacity-70 truncate max-w-full z-10">
+        {board.domain}
+      </span>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [theme, setTheme] = useState<ThemeMode>("classic");
-  const [activePresetId, setActivePresetId] = useState<string>("default");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [customBoards, setCustomBoards] = useState<Board[]>([]);
+  const [hoveredBoard, setHoveredBoard] = useState<Board | null>(null);
 
   // Modal: Create Custom Board
   const [isNewBoardOpen, setIsNewBoardOpen] = useState(false);
@@ -64,10 +89,15 @@ export default function HomePage() {
     loadBoards();
   }, []);
 
-  // Dual search: "/" for curated presets, otherwise Remedy 1 Domain-level categorized search
+  // Permanent default to primary board categories ("default"), or dynamic search filter
   const dualResult: DualSearchResult = useMemo(() => {
-    return executeDualSearch(searchQuery, activePresetId, customBoards);
-  }, [searchQuery, activePresetId, customBoards]);
+    return executeDualSearch(searchQuery, "default", customBoards);
+  }, [searchQuery, customBoards]);
+
+  const activeHeroBoard = useMemo(() => {
+    if (hoveredBoard) return hoveredBoard;
+    return allBoards.find((b) => b.shortcode === "vibe") || allBoards[0];
+  }, [hoveredBoard]);
 
   // Flattened visible boards for top/bottom bracketed global nav
   const visibleBoards = useMemo(() => {
@@ -276,11 +306,7 @@ export default function HomePage() {
         <div className={`border rounded-[3px] shadow-2xs overflow-hidden ${themeStyles.boxBorder}`}>
           {/* Box Header Bar */}
           <div className={`py-1.5 px-3 flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wide ${themeStyles.boxHeader}`}>
-            <span>
-              {dualResult.mode === "preset"
-                ? `Boards — ${dualResult.matchedPreset?.name || "Directory"}`
-                : `Search: "${searchQuery}"`}
-            </span>
+            <span>Boards — Directory</span>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsNewBoardOpen(true)}
@@ -295,34 +321,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Controls Bar: Preset Pills + Dual Search Field */}
-          <div className={`p-2.5 sm:px-4 text-xs flex flex-col sm:flex-row items-center justify-between gap-2.5 ${themeStyles.subHeader}`}>
-            {/* Quick Preset Text Buttons */}
-            <div className="flex flex-wrap items-center gap-1 text-[11px]">
-              <span className="font-semibold opacity-60 mr-1">Presets:</span>
-              {presets.slice(0, 6).map((p) => {
-                const isActive =
-                  dualResult.mode === "preset" &&
-                  (searchQuery === p.command || activePresetId === p.id);
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      setActivePresetId(p.id);
-                      setSearchQuery(p.command);
-                    }}
-                    className={`cursor-pointer px-1 py-0.5 rounded text-[11px] ${
-                      isActive ? themeStyles.presetActive : themeStyles.presetInactive
-                    }`}
-                    title={p.description}
-                  >
-                    [{p.name}]
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Dual Search Input */}
+          {/* Minimal Controls Bar */}
+          <div className={`p-2 sm:px-3 text-xs flex items-center justify-end gap-2 border-b border-current/10 ${themeStyles.subHeader}`}>
             <div className="flex items-center gap-1.5 w-full sm:w-auto">
               <label htmlFor="board-filter" className="text-[11px] font-mono opacity-70 whitespace-nowrap">
                 Search:
@@ -333,7 +333,7 @@ export default function HomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="e.g. /gaming or shooter, eldren..."
+                  placeholder="Filter boards..."
                   className={`w-full border rounded-[2px] px-2 py-0.5 text-xs outline-none font-mono ${themeStyles.inputBg}`}
                 />
                 {searchQuery && (
@@ -346,40 +346,6 @@ export default function HomePage() {
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Directory Status / Feedback Badge */}
-          <div className="px-3 sm:px-4 py-1.5 border-b border-current/10 text-[11px] flex items-center justify-between opacity-80">
-            {dualResult.mode === "preset" ? (
-              <div className="flex items-center gap-1.5">
-                <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold ${themeStyles.badgePreset}`}>
-                  PRESET: {dualResult.matchedPreset?.command}
-                </span>
-                <span className="truncate max-w-[280px] sm:max-w-none text-[10.5px]">
-                  {dualResult.matchedPreset?.description}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold ${themeStyles.badgeGeneric}`}>
-                  DISCOVERY SEARCH
-                </span>
-                <span className="text-[10.5px]">
-                  {dualResult.categories.length === 0
-                    ? `No boards match "${searchQuery}"`
-                    : `Clustered into ${dualResult.categories.length} cultural domains`}
-                </span>
-              </div>
-            )}
-
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="font-mono text-[10px] underline hover:opacity-100"
-              >
-                reset
-              </button>
-            )}
           </div>
 
           {/* Category Columns */}
@@ -420,6 +386,7 @@ export default function HomePage() {
                         <li key={b.id}>
                           <Link
                             href={`/catalog?b=${b.shortcode}`}
+                            onMouseEnter={() => setHoveredBoard(b)}
                             className={`group flex items-baseline gap-1 py-0.5 transition-colors ${themeStyles.boardLink}`}
                             title={`/${b.shortcode}/ - ${b.name}\n${b.description}`}
                           >
@@ -438,44 +405,62 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 4. DEV GUIDE / PRESET COMMAND CHEATSHEET */}
-        <div className={`border rounded-[3px] text-xs ${themeStyles.boxBorder}`}>
-          <div className={`py-1 px-3 text-[11px] font-bold uppercase tracking-wider flex items-center justify-between ${themeStyles.boxHeader}`}>
-            <span>[Dev Guide] Dual Search &amp; Preset Slash Commands</span>
-            <span className="font-mono text-[9px] opacity-70 lowercase">
-              Type / to browse lenses
+        {/* 4. INTERACTIVE BOARD PREVIEW HERO */}
+        <div className={`border rounded-[3px] shadow-2xs overflow-hidden transition-all duration-200 ${themeStyles.boxBorder}`}>
+          <div className={`py-1.5 px-3 flex items-center justify-between text-xs font-bold uppercase tracking-wide ${themeStyles.boxHeader}`}>
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3" />
+              Board Preview Hero
+            </span>
+            <span className="text-[10px] font-mono font-normal opacity-70">
+              /{activeHeroBoard.shortcode}/
             </span>
           </div>
 
-          <div className="p-3 sm:p-4 text-xs space-y-2.5">
-            <p className="opacity-80 text-[11px] leading-relaxed">
-              <strong>Dual Search active:</strong> Type a <code className="font-mono font-bold">/</code> command to immediately load a curated preset with structured categories. Type without <code className="font-mono font-bold">/</code> for direct linguistic search without fake categories across all registered and custom boards. Click any command below to test:
-            </p>
+          <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <BoardPlaceholderArt board={activeHeroBoard} />
+            <div className="flex-1 space-y-1.5 min-w-0">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <h3 className="text-base sm:text-lg font-bold font-serif">
+                  /{activeHeroBoard.shortcode}/ - {activeHeroBoard.name}
+                </h3>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/5 border border-current/10">
+                  {activeHeroBoard.domain} &bull; {activeHeroBoard.subCategory}
+                </span>
+              </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
-              {presets.map((p) => {
-                const isCurrent =
-                  searchQuery === p.command ||
-                  (dualResult.mode === "preset" && dualResult.matchedPreset?.id === p.id);
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      setSearchQuery(p.command);
-                      setActivePresetId(p.id);
-                    }}
-                    className={`text-left p-1.5 rounded-[2px] border transition-colors cursor-pointer text-xs ${
-                      isCurrent
-                        ? "bg-[#D00]/10 border-[#D00] font-bold text-[#D00]"
-                        : "border-current/10 hover:bg-current/5"
-                    }`}
-                    title={p.description}
-                  >
-                    <div className="font-mono font-bold text-[11px]">{p.command}</div>
-                    <div className="text-[10px] opacity-70 truncate">{p.name}</div>
-                  </button>
-                );
-              })}
+              <p className="text-xs opacity-80 leading-relaxed">
+                {activeHeroBoard.description}
+              </p>
+
+              {activeHeroBoard.tags && activeHeroBoard.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {activeHeroBoard.tags.slice(0, 5).map((tag, tIdx) => (
+                    <span key={tIdx} className="text-[10px] font-mono opacity-60">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center gap-3">
+                <Link
+                  href={`/catalog?b=${activeHeroBoard.shortcode}`}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5 shadow-2xs ${
+                    theme === "classic"
+                      ? "bg-[#800000] text-white hover:bg-[#990000]"
+                      : theme === "twitter"
+                      ? "bg-[#1DA1F2] text-white hover:bg-[#1a91da]"
+                      : "bg-emerald-700 text-white hover:bg-emerald-800"
+                  }`}
+                >
+                  <span>Enter /{activeHeroBoard.shortcode}/ Board</span>
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+                <span className="text-[10.5px] opacity-60 italic hidden sm:inline">
+                  Hover over any board above to preview
+                </span>
+              </div>
             </div>
           </div>
         </div>
