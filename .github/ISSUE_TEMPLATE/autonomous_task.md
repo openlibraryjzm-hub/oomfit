@@ -13,8 +13,11 @@ labels: ["autonomous-task"]
 - [ ] 
 - [ ] Automated check passes: `npm run build`
 
-## 🛑 Out of Scope
-<!-- The electric fence: what the AI must explicitly NOT touch or build -->
+## 🛑 What NOT to Do
+<!-- Replace/overwrite with task-specific boundaries (scope fences & code anti-patterns). Examples: -->
+- Do not build extra features or touch files outside the direct task footprint.
+- Do not introduce new external npm packages when native Tailwind / standard APIs suffice.
+- Do not modify database schemas or backend APIs unless explicitly requested in the Objective.
 
 ## 🛡️ Autonomous Execution Contract
 - **Rule:** 1 Issue = 1 Branch = 1 Pull Request
