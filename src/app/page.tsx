@@ -11,6 +11,7 @@ import {
 } from "@/lib/boards";
 import { fetchBoards, createCustomBoard } from "@/lib/client-api";
 import { FolderPlus, Plus, X } from "lucide-react";
+import { ProfileBadge } from "@/lib/user";
 
 function TwitterIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
@@ -180,8 +181,10 @@ export default function HomePage() {
       {/* 1. GLOBAL TOP BRACKETED NAVIGATION BAR */}
       <header className={`px-2 sm:px-4 py-1.5 text-xs select-none ${themeStyles.topNav}`}>
         <div className="flex flex-wrap items-center justify-between gap-2 max-w-[1920px] mx-auto">
-          {/* Bracketed Shortcode Bar */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+          {/* Profile Badge & Bracketed Shortcode Bar */}
+          <div className="flex flex-wrap items-center gap-2 text-[11px] leading-tight">
+            <ProfileBadge />
+            <span className="opacity-30">|</span>
             <span className="font-mono">
               <span className={themeStyles.topNavBrackets}>[ </span>
               {visibleBoards.map((b, i) => (

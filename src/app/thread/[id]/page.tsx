@@ -27,6 +27,7 @@ function TwitterIcon({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 import { UserProfile } from "@/lib/data";
+import { ProfileBadge } from "@/lib/user";
 import { fetchThread, postReply, triggerBot, Thread, ThreadReply } from "@/lib/client-api";
 
 type ThemeMode = "classic" | "twitter" | "light";
@@ -556,6 +557,8 @@ function ThreadContent({ params }: ThreadPageProps) {
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
           {/* Left Navigation */}
           <div className="flex items-center gap-3">
+            <ProfileBadge />
+            <span className="opacity-30">|</span>
             <Link
               href={`/catalog?b=${op.boardId}`}
               className="flex items-center gap-1 font-semibold opacity-80 hover:opacity-100"
