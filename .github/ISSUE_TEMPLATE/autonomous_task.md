@@ -6,24 +6,15 @@ labels: ["autonomous-task"]
 ---
 
 ## 🎯 Objective
-<!-- 1-2 sentence summary of what this issue solves or builds -->
-
-## 📝 Raw Intent & Context
-<!-- The user story, problem snippet, or messy thought that inspired this -->
-
-## 🔗 Prerequisites & Dependencies
-<!-- Does this require another issue to be completed first? (e.g. "None", or "Requires #12") -->
+<!-- 1-2 sentence summary of what to build or fix and why -->
 
 ## ✅ "Done When" (Acceptance Criteria)
-<!-- Concrete, testable checklist. When all are checked, dev halts -->
+<!-- Concrete, binary checklist. AI stops when these are satisfied -->
 - [ ] 
 - [ ] Automated check passes: `npm run build`
 
 ## 🛑 Out of Scope
-<!-- What should definitely NOT be touched or built in this task -->
-
-## 🔒 Invariants & Guardrails
-<!-- User experience or product rules that must not be broken (e.g. "Preserve classic Yotsuba beige theme") -->
+<!-- The electric fence: what the AI must explicitly NOT touch or build -->
 
 ## 🛡️ Autonomous Execution Contract
 - **Rule:** 1 Issue = 1 Branch = 1 Pull Request
