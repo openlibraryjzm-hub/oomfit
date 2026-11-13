@@ -20,8 +20,9 @@ session_architecture:
   # - "Subagent Delegation": Parent coordinator delegates branches to background workers.
 
 autonomy_directive:
-  loop_mode: "Interactive Handoff" # Options:
+  loop_mode: "Autonomous Pipeline (Overnight / Unattended)" # Options:
   # - "Interactive Handoff": Propose diff/branch -> human tests & approves before next.
+  # - "Autonomous Pipeline (Overnight / Unattended)": Coordinator sequences workers, auto-merges on clean build, halts on failure.
   # - "Goal-Seeking (/goal)": Autonomous loop until acceptance criteria or circuit breaker triggers.
 
 verification_gate:
