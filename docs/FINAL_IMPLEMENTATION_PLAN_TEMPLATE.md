@@ -22,14 +22,34 @@
 
 ---
 
-## 🤖 Worker Delegation Manifest
-<!-- Specific assignments for background subagents or autonomous workers. -->
+## 🤖 Worker Delegation Manifest & Dispatch Standard
+
+### 📋 Standard Dispatch Formula for Main Agent
+When summoning each background worker (e.g. via `invoke_subagent`), the Main Agent must construct the worker prompt using this exact structure:
+```text
+You are [Worker ID]. Your mission is to implement Issue #[Issue #].
+1. WORK ORDER: Run `gh issue view [Issue #]` to read your full specification.
+2. IRONCLAD RULES OF ENGAGEMENT:
+   - Your sole definition of success is satisfying every checkbox in `## ✅ Done When`.
+   - The `## 🛑 Out of Scope` section is an electric fence: you are strictly forbidden from building those features or touching those files.
+   - Circuit Breaker: You have a hard limit of 3 consecutive failed `npm run build` attempts. If you fail 3 times, immediately halt and report the blocker.
+3. CONTEXT DOCS: Read [Assigned Context Docs] before editing.
+4. GIT WORKFLOW:
+   - Checkout base branch `[Base Branch]` and create working branch `[Working Branch]`.
+   - Edit only: [Target Files].
+   - Verify with: `npm run build`.
+   - Submit PR titled `[TASK]: [Title]` closing Issue #[Issue #] and report back.
+```
+
+---
 
 ### Worker 1: `[worker-id-slug]`
 - **Assigned Task:** Issue #[X] — [Short Title]
 - **Base Branch:** `main`
 - **Working Branch:** `issue-[X]-[slug]`
 - **Workspace Isolation:** `branch` (isolated clone)
+- **Target Files:** `[List of files]`
+- **Assigned Context Docs:** `[docs/example.md]`
 - **Done When:**
   - Satisfies all Issue #[X] acceptance criteria
   - Automated check passes: `npm run build`
@@ -41,6 +61,8 @@
 - **Base Branch:** [e.g. waits for Issue #X merge]
 - **Working Branch:** `issue-[Y]-[slug]`
 - **Workspace Isolation:** `branch`
+- **Target Files:** `[List of files]`
+- **Assigned Context Docs:** `[docs/example.md]`
 - **Done When:**
   - Satisfies all Issue #[Y] acceptance criteria
   - Automated check passes: `npm run build`
