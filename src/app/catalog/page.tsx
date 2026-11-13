@@ -28,6 +28,7 @@ function TwitterIcon({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 import { getBoard } from "@/lib/boards";
+import { ProfileBadge } from "@/lib/user";
 import {
   fetchThreads,
   createNewThread,
@@ -234,6 +235,8 @@ function CatalogInner() {
         <div className="mx-auto flex max-w-[1920px] flex-wrap items-center justify-between gap-3">
           {/* Board Title & Brand */}
           <div className="flex items-center gap-3">
+            <ProfileBadge />
+            <span className="opacity-30">|</span>
             <Link
               href="/"
               className="group flex items-center gap-1.5 opacity-80 hover:opacity-100 text-xs font-semibold mr-1"
