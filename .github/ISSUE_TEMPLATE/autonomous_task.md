@@ -13,11 +13,11 @@ labels: ["autonomous-task"]
 - [ ] 
 - [ ] Automated check passes: `npm run build`
 
-## 🛑 What NOT to Do
-<!-- Replace/overwrite with task-specific boundaries (scope fences & code anti-patterns). Examples: -->
-- Do not build extra features or touch files outside the direct task footprint.
-- Do not introduce new external npm packages when native Tailwind / standard APIs suffice.
-- Do not modify database schemas or backend APIs unless explicitly requested in the Objective.
+## 🛑 Out of Scope
+<!-- Explicit boundaries: related features or logical extensions deliberately deferred to keep this ticket atomic. Examples: -->
+- Backend persistence or database schema changes (e.g. keeping to client state / mock data for this ticket).
+- Secondary screens or downstream workflows (e.g. if adding a "bookmark" button, building a full "saved bookmarks" dashboard is out of scope).
+- Visual redesigns or refactoring of adjacent components outside this feature's footprint.
 
 ## 🛡️ Autonomous Execution Contract
 - **Rule:** 1 Issue = 1 Branch = 1 Pull Request
