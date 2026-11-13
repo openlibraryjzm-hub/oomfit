@@ -21,6 +21,7 @@ The home page acts as the primary navigational front door of **oomfit**. It is d
 2. **Distinct Category Hierarchy:** Boards organized into clean, vertical columns separated by bold, uppercase, underlined category headers.
 3. **Restrained Layout Width:** A compact, centered container (`max-w-[800px]`) that preserves visual balance on modern ultrawide screens as well as mobile viewports.
 4. **Authentic Imageboard Aesthetics:** 1px borders, subtle shaded title bars, bracketed navigation bars (`[ mc / tf2 / ... ]`), and traditional color palettes.
+5. **Modern Interactive Enhancements:** Centered minimalist typewriter search with board highlighting, real-time dimming, and an interactive Board Preview Hero card on hover.
 
 ---
 
@@ -30,15 +31,15 @@ The home page consists of four primary structural zones:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ [ mc / tf2 / tes ] [ ai / vibe / nix ] [ moe / fa ]   [Catalog] [Theme]│
+│ [Profile Badge] | [ mc / tf2 / tes ] [ ai / vibe ]    [Catalog] [Theme]│
 ├────────────────────────────────────────────────────────────────────────┤
 │                           [Clover Logo]                                │
 │                              oomfit                                    │
 │                                                                        │
+│                Search: anime _ [flashing cursor]                       │
+│                                                                        │
 │ ┌────────────────────────────────────────────────────────────────────┐ │
-│ │ BOARDS — DIRECTORY                              18 boards visible  │ │
-│ ├────────────────────────────────────────────────────────────────────┤ │
-│ │ Presets: [Default] [Gaming] [Tech] ...     Search: [             ] │ │
+│ │ BOARDS — DIRECTORY                              20 boards visible  │ │
 │ ├──────────────────┬──────────────────┬──────────────────┬───────────┤ │
 │ │ GAMES            │ TECHNOLOGY       │ AESTHETICS       │ CULTURE   │ │
 │ │ Minecraft        │ AI               │ Moe              │ Cooking   │ │
@@ -47,8 +48,10 @@ The home page consists of four primary structural zones:
 │ └──────────────────┴──────────────────┴──────────────────┴───────────┘ │
 │                                                                        │
 │ ┌────────────────────────────────────────────────────────────────────┐ │
-│ │ [DEV GUIDE] PRESET COMMANDS                                        │ │
-│ │ Clickable test shortcuts for preset slash commands                 │ │
+│ │ BOARD PREVIEW HERO                                      /vibe/     │ │
+│ │ [Art Box]  /vibe/ - Vibecoding                                      │ │
+│ │            Coding with AI assistants and natural language           │ │
+│ │            [Enter /vibe/ Board →]                                  │ │
 │ └────────────────────────────────────────────────────────────────────┘ │
 │                                                                        │
 │ [ mc / tf2 / tes ] [ ai / vibe / nix ] [ moe / fa ]                    │
@@ -59,25 +62,32 @@ The home page consists of four primary structural zones:
 ---
 
 ### 1. Global Top Navigation Header
-- **Dynamic Bracketed Shortcodes:** Displays bracketed lists of board shortcodes reflecting the active preset or search results.
-- **Utility Links:** Quick shortcut to `[Catalog]` and an instant **Theme Switcher** cycling between `Classic`, `Twitter`, and `Light`.
+- **Profile Badge:** Fixed on the far left with avatar initials and username/handle, linking directly to `/signup`.
+- **Dynamic Bracketed Shortcodes:** Displays bracketed lists of board shortcodes.
+- **Utility Links:** Quick shortcut to `[+ Create Board]`, `[Catalog]`, and an instant **Theme Switcher** cycling between `Classic`, `Twitter`, and `Light`.
 
-### 2. Branding Masthead
+### 2. Branding Masthead & Minimalist Centered Search
 - Centered retro clover emblem and serif/sans-serif title (`oomfit`).
-- Deliberately minimal to maintain focus directly on the directory.
+- **Centered Typewriter Search Bar:**
+  - Minimalist borderless/underline styling without heavy bounding boxes.
+  - Flashing text cursor.
+  - Automated typewriter cycles sample keywords (`anime`, `gaming`, `tech`, `retro`, `vibecoding`, etc.).
+  - User click/focus halts animation immediately for fluid manual typing.
+  - **Dynamic Board Highlighting:** Matching boards in the directory stay brightly visible and highlighted while non-matching boards dim to 25% opacity.
 
 ### 3. The Boards Directory Box
 The centerpiece of the home page, encapsulated in a single bordered box (`boxBorder`):
-- **Title Bar (`boxHeader`):** Shaded header displaying the directory state (`Boards — Directory` or `Search: "query"`) and live count of visible boards.
-- **Controls Subheader (`subHeader`):**
-  - **Quick Preset Pills:** Clickable buttons to switch between curated presets (`[Default]`, `[Gaming]`, `[Consoles]`, etc.).
-  - **Dual Search Field:** Minimalist filter input for preset slash commands (`/gaming`) or generic board discovery (`shooter`, `coffee`).
+- **Title Bar (`boxHeader`):** Shaded header displaying `Boards — Directory` and live count of visible boards.
 - **Category Columns:** A balanced 2 to 4 column responsive grid (`grid-cols-1 sm:grid-cols-2 md:grid-cols-4`).
   - **Category Header Bar:** Uppercase, underlined title (`categoryHeader`).
-  - **Board Hyperlinks:** Plain text hyperlinks that navigate to `/catalog?b=[shortcode]`. Hovering turns links red (`#D00`) in Classic mode and `#1DA1F2` in Twitter mode.
+  - **Board Hyperlinks:** Plain text hyperlinks that navigate to `/catalog?b=[shortcode]`. Hovering dynamically updates the preview hero below.
 
-### 4. Dev Guide / Hint Box
-A compact reference panel located below the main directory box, listing available `/` slash commands (e.g. `/gaming`, `/anime`, `/retro`). Each command button is interactive, populating the search bar on click for rapid testing during development.
+### 4. Interactive Board Preview Hero Card
+Positioned directly below the directory box:
+- Dynamically responds to board link hovers.
+- Displays domain-styled retro pixel art canvas with board shortcode.
+- Displays board title, domain, subcategory, detailed description, and tag pills.
+- Quick **[Enter Board &rarr;]** action button linking to `/catalog?b=[shortcode]`.
 
 ### 5. Classic Footer
 - Repeated bracketed shortcode bar.
@@ -101,4 +111,5 @@ The home page fully respects the platform's three universal styling modes:
 ## 🔗 Route Integration
 
 - **Board Navigation:** All board hyperlinks route to `/catalog?b=[shortcode]` (e.g. `/catalog?b=mc`, `/catalog?b=tf2`).
-- **Catalog Reflection:** The catalog page dynamically reads the `b` search parameter, rendering the corresponding board name and description in its header while skimmers explore the active threads.
+- **Profile Navigation:** Global profile badge routes to `/signup`.
+- **Catalog Reflection:** The catalog page dynamically reads the `b` search parameter, rendering the corresponding board name and description in its header.

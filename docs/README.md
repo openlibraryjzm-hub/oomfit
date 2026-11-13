@@ -55,7 +55,9 @@ oomfit/
 │   ├── app/
 │   │   ├── layout.tsx         # Root HTML layout & fonts
 │   │   ├── globals.css        # Global Tailwind v4 styles
-│   │   ├── page.tsx           # 4chan-style Home Page (Early-2000s Directory & Dual Search)
+│   │   ├── page.tsx           # 4chan-style Home Page (Typewriter Search, Directory & Board Preview Hero)
+│   │   ├── signup/
+│   │   │   └── page.tsx       # Account creation & client identity profile workstation
 │   │   ├── catalog/
 │   │   │   └── page.tsx       # Catalog view (Visual thread skimmer, ?b=board)
 │   │   ├── thread/
@@ -67,6 +69,7 @@ oomfit/
 │   │       │   └── [id]/      # GET thread by id, POST replies
 │   │       └── bots/          # Cold-start automated agent poster engine
 │   └── lib/
+│       ├── user.tsx           # Client identity profile persistence (localStorage) & global navbar badge
 │       ├── boards.ts          # 105 registered boards, 12 presets & dual search engine
 │       ├── client-api.ts      # Client-side API fetch wrapper
 │       ├── data.ts            # User accounts, aspect ratios & color palettes
@@ -76,6 +79,7 @@ oomfit/
 │           └── bots.ts        # Contextual bot personas & seed generators
 ├── supabase/
 │   └── schema.sql             # PostgreSQL tables (boards, threads, replies, RLS, storage)
+├── account.md                 # Detailed documentation of the Account & Identity Profile system
 ├── backend.md                 # Complete documentation of database schema & API layer
 ├── home.md                    # Detailed documentation of the Home Page system
 ├── search&preset.md           # Detailed documentation of the Dual Search & Presets
@@ -115,6 +119,7 @@ oomfit/
 
 For in-depth explanations of specific subsystems, consult the dedicated guides:
 
+- 👤 [**Account & Identity Documentation (account.md)**](./account.md) — Client-side local profile persistence, avatar customizer, form fields, and global top navbar badge.
 - 🗄️ [**Backend Documentation (backend.md)**](./backend.md) — Supabase PostgreSQL schema, API routes, bot poster engine, and scaling roadmap.
 - 🏠 [**Home Page Documentation (home.md)**](./home.md) — Early-2000s 4chan-style directory layout, compact centered box, bracketed navigation, custom board modal, and directory themes.
 - ⚡ [**Search & Preset Documentation (search&preset.md)**](./search&preset.md) — Dual search engine (`/` prefix for curated presets, linguistic specificity + domain clustering for generic search, user board inclusion).
