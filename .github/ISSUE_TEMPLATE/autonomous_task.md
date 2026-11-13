@@ -6,7 +6,7 @@ labels: ["autonomous-task"]
 ---
 
 ## 🎯 Objective
-<!-- 1-10 sentence summary of what to build or fix and why -->
+<!-- 1-4 sentence summary of what to build or fix and why -->
 
 ## ✅ "Done When" (Acceptance Criteria)
 <!-- Concrete, binary checklist. AI stops when these are satisfied -->
