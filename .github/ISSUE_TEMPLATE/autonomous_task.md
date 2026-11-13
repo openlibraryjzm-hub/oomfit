@@ -1,28 +1,31 @@
 ---
 name: Autonomous Task Spec
-about: Task specification for autonomous AI agent implementation
+about: Atomic task specification for autonomous coding
 title: "[TASK]: "
 labels: ["autonomous-task"]
 ---
 
 ## 🎯 Objective
-<!-- Brief summary of what this issue solves or builds -->
+<!-- 1-2 sentence summary of what this issue solves or builds -->
 
-## 📝 Raw Intent / Context
-<!-- What prompted this change, user story, or messy thought snippet -->
+## 📝 Raw Intent & Context
+<!-- The user story, problem snippet, or messy thought that inspired this -->
+
+## 🔗 Prerequisites & Dependencies
+<!-- Does this require another issue to be completed first? (e.g. "None", or "Requires #12") -->
 
 ## ✅ "Done When" (Acceptance Criteria)
-<!-- Concrete, verifiable conditions. The AI agent stops when all of these are satisfied -->
+<!-- Concrete, testable checklist. When all are checked, dev halts -->
 - [ ] 
-- [ ] Automated verification passes (`npm run build`)
+- [ ] Automated check passes: `npm run build`
 
 ## 🛑 Out of Scope
-<!-- What should the AI explicitly NOT touch or build in this issue -->
+<!-- What should definitely NOT be touched or built in this task -->
 
-## ⚠️ Known Constraints & Fragile Areas
-<!-- Next.js 16 conventions, database schemas, or existing patterns to respect -->
+## 🔒 Invariants & Guardrails
+<!-- User experience or product rules that must not be broken (e.g. "Preserve classic Yotsuba beige theme") -->
 
-## 🛡️ Circuit Breaker & Execution Rules
+## 🛡️ Autonomous Execution Contract
 - **Rule:** 1 Issue = 1 Branch = 1 Pull Request
-- **Target Branch Name:** `issue-<number>-<short-slug>`
-- **Max Attempts:** 3 failed build/test cycles before pausing dev and posting a diagnostic comment.
+- **Branch:** `issue-<number>-<short-slug>`
+- **Circuit Breaker:** Max 3 attempts on failed build/test before pausing dev and posting a blocker comment.
