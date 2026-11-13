@@ -1,128 +1,52 @@
-# Autonomous Coding Workflow Guide
+# Issue Ingestion Guide: Parsing Messy Prompts into Atomic Issues
 
-This document defines the official standard operating procedure for autonomous, agent-assisted development in **oomfit**. Any AI assistant or developer working on this codebase must follow this workflow.
-
----
-
-## 🏛️ The 4 Core Principles
-
-1. **1 Issue = 1 Branch = 1 Pull Request:** Never bundle multiple issues into a single branch or PR unless explicitly approved in a multi-issue plan.
-2. **Binary "Done When" Criteria:** Acceptance criteria must have indisputable pass/fail answers. No subjective or vague targets.
-3. **Mandatory Build Verification:** Every branch must pass `npm run build` cleanly before being submitted for review.
-4. **Strict Circuit Breaker:** An AI agent is permitted a maximum of **3 consecutive failed build/test attempts** before it must halt development, revert dangerous edits, and post a diagnostic blocker comment.
+This guide defines the universal heuristics for parsing unstructured, messy developer prompts into clean, atomic GitHub issues. It is completely project-agnostic and can be dropped into any software repository.
 
 ---
 
-## 🔄 The 4-Stage Lifecycle
+## 🏛️ The Golden Contract
 
-```
-[Messy Prompt] 
-       │
-       ▼
-┌───────────────────────────────┐
-│ Stage 1: Issue Ingestion      │ ──► Run 4 Litmus Tests (Split if needed)
-│          & Template Spec      │ ──► Approve & push via `gh issue create`
-└───────────────────────────────┘
-       │
-       ▼
-┌───────────────────────────────┐
-│ Stage 2: Backlog & Constraint │ ──► Evaluate model limits, capacity & scope
-│          Assessment           │ ──► Present approaches with tradeoffs
-└───────────────────────────────┘
-       │
-       ▼
-┌───────────────────────────────┐
-│ Stage 3: Refined Plan &       │ ──► Define branch topology (Parallel vs Stacked)
-│          Merge Order          │ ──► Set exact sequence: issue-<num>-<slug>
-└───────────────────────────────┘
-       │
-       ▼
-┌───────────────────────────────┐
-│ Stage 4: Autonomous Execution │ ──► Agent codes & runs `npm run build` (Max 3 tries)
-│          & UI/UX Review       │ ──► PR submitted ──► Human tests & merges
-└───────────────────────────────┘
-```
+1. **1 Issue = 1 Branch = 1 Pull Request:** Every issue must represent a single, bounded deliverable.
+2. **Binary "Done When" Criteria:** Every acceptance criterion must be an indisputable Yes/No test.
+3. **Out of Scope Electric Fence:** Every issue must define what is explicitly deferred to protect against scope creep.
+4. **Autonomous Circuit Breaker:** Max 3 attempts on failed build/tests before pausing and asking for human guidance.
 
 ---
 
-## ✂️ Stage 1: Issue Ingestion & The 4 "Split" Litmus Tests
+## ✂️ The 4 Litmus Tests: When to Split a Prompt into Multiple Issues
 
-When a developer provides raw, messy thoughts or feature requests, the AI must evaluate the request against these **4 Litmus Tests** before creating an issue. If any test fails, the AI **must propose splitting the request into multiple atomic issues**.
+When an AI receives a long, stream-of-consciousness prompt, it must evaluate the request against these 4 tests. If **any** test triggers, the prompt **must be split into separate issues**.
 
-### 1. Independent Deployability Test
-* *Can Feature A be merged into `main` and provide value without Feature B?*
-* If yes, **split them**.
-* *Example:* "Add catalog card hover animations" and "Add search debounce" are independent $\rightarrow$ Split into two issues.
+### 1. The Independent Deployability Test
+* **Question:** *Can Feature A be shipped to production and provide value on its own, without Feature B?*
+* **Rule:** If Feature A and Feature B can exist independently, **split them into separate issues**.
+* **Example:** *"I want a search bar with auto-complete and also a dark mode toggle."* $\rightarrow$ Two separate issues.
 
-### 2. Architectural Layer Test
-* *Does the request cross major architectural boundaries (e.g., Supabase PostgreSQL schema vs. Next.js 16 UI components vs. Bot engine)?*
-* If yes, **split them**.
-* *Example:* "Add post spoiler blur" $\rightarrow$ 
-  * Issue 1: Database column / API payload support (`is_spoiler: boolean`).
-  * Issue 2: Frontend catalog card & thread inlining blur UI.
+### 2. The Architectural Layer Test
+* **Question:** *Does this prompt touch multiple distinct architectural layers (e.g. Database / Data Schema vs. API / Backend Logic vs. Frontend UI)?*
+* **Rule:** Cross-layer work should be split so the underlying data layer is established and verified before UI layers consume it.
+* **Example:** *"Add user bookmarks."* $\rightarrow$
+  * Issue A: Data model / storage persistence for bookmarks.
+  * Issue B: User-facing bookmark UI button and display view.
 
-### 3. Verification Cohesion Test
-* *Can the acceptance criteria be validated in a single coherent manual or automated test pass?*
-* If the verification requires testing completely separate pages or environments, **split them**.
+### 3. The Verification Cohesion Test
+* **Question:** *Can all "Done When" criteria be tested and verified in a single coherent flow?*
+* **Rule:** If verifying the changes requires navigating to completely different parts of the application or running unrelated testing suites, **split them**.
+* **Example:** *"Fix the checkout validation and update the footer copyright links."* $\rightarrow$ Two separate issues.
 
-### 4. Blast Radius (Diff Budget) Test
-* *Will the implementation touch more than 4–5 files or exceed ~200–300 lines of diff?*
-* If yes, **split them**. Smaller PRs reduce agent hallucination and make human review effortless.
-
-### Publishing the Issue
-Once atomic boundaries are confirmed and the user approves the spec, the issue is published to GitHub via:
-```bash
-gh issue create --title "[TASK]: <Short Title>" --body-file spec.md
-```
+### 4. The Blast Radius (Diff Budget) Test
+* **Question:** *Will the implementation likely touch more than 4–5 files or exceed ~200–300 lines of changed code?*
+* **Rule:** If the estimated footprint exceeds this budget, **split it into smaller sequential slices**.
+* **Why:** Smaller diffs keep AI models focused, prevent hallucinated refactors, and make human review effortless.
 
 ---
 
-## ⚖️ Stage 2: Backlog & Constraint Assessment
+## 🤝 The AI Ingestion Protocol
 
-Once issues exist on GitHub, the AI performs an architectural assessment of the requested scope against active constraints:
+When an AI receives a messy prompt, it must **never** silently assume a monolithic issue if multiple concerns exist. It must follow this protocol:
 
-1. **Model & Context Capacity:** Evaluate whether the task complexity fits the active model (e.g., Gemini Flash vs. Pro) and context window.
-2. **Tradeoff Analysis:** Offer 2–3 viable architectural approaches with transparent pros, cons, and performance/maintenance tradeoffs.
-3. **Capacity Realism:** If the user presents a large wishlist, explicitly state which items can be done cleanly together vs. what should be deferred.
-
----
-
-## 🗺️ Stage 3: Refined Implementation Plan & Merge Order
-
-Before a single line of code is written:
-
-1. **Branch Topology (Parallel vs. Stacked):**
-   * **Parallel Branches:** Independent features branched directly off `main`.
-   * **Stacked Branches:** Dependent features (e.g., Issue #2 branched off `issue-1-db-schema`).
-2. **Merge Order Recommendation:** A numbered sequence for merging pull requests to prevent conflicts or broken builds.
-3. **Approved Naming Standard:**
-   ```text
-   issue-<number>-<short-descriptive-slug>
-   ```
-
----
-
-## 🚀 Stage 4: Autonomous Execution & Human Review
-
-During implementation:
-
-1. **Clean Branch Creation:**
-   ```bash
-   git checkout main
-   git pull origin main
-   git checkout -b issue-<number>-<slug>
-   ```
-2. **Execution Circuit Breaker:**
-   * After writing code, run automated verification:
-     ```bash
-     npm run build
-     ```
-   * If the build fails, the agent may attempt a fix up to **3 times maximum**.
-   * On the 3rd failure, the agent must **pause**, revert breaking changes, and post a diagnostic comment detailing the failure.
-3. **Pull Request Submission:**
-   Once `npm run build` succeeds cleanly, open the PR:
-   ```bash
-   gh pr create --title "[TASK]: <Title>" --body "Closes #<number>. Automated verification passed."
-   ```
-4. **Human-in-the-Loop Verification:**
-   * The developer checks out the branch, verifies the UI/UX visually, and merges following the approved merge order.
+1. **Analyze:** Run the 4 Litmus Tests against the prompt.
+2. **Propose the Split:** If multiple issues are detected, present the proposed breakdown to the developer first:
+   * **Issue 1:** [Title + 1-sentence Objective]
+   * **Issue 2:** [Title + 1-sentence Objective (and note if it depends on Issue 1)]
+3. **Wait for Approval:** Once the developer approves the split (or adjusts it), format each issue using the repository's issue template (`.github/ISSUE_TEMPLATE/autonomous_task.md`) and publish via GitHub CLI (`gh issue create`).
