@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   executeDualSearch,
@@ -9,7 +9,7 @@ import {
   allBoards,
 } from "@/lib/boards";
 import { fetchBoards, createCustomBoard } from "@/lib/client-api";
-import { FolderPlus, Plus, X, Sparkles, ArrowRight } from "lucide-react";
+import { FolderPlus, Plus, X, Sparkles, ArrowRight, Search } from "lucide-react";
 import { ProfileBadge } from "@/lib/user";
 
 function TwitterIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -57,11 +57,101 @@ function BoardPlaceholderArt({ board }: { board: Board }) {
   );
 }
 
+const TYPEWRITER_KEYWORDS = [
+  "anime",
+  "gaming",
+  "tech",
+  "retro",
+  "coffee",
+  "music",
+  "ai",
+  "vibecoding",
+  "skyrim",
+  "minecraft",
+];
+
 export default function HomePage() {
   const [theme, setTheme] = useState<ThemeMode>("classic");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isManualMode, setIsManualMode] = useState<boolean>(false);
+  const [typewriterText, setTypewriterText] = useState<string>("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [customBoards, setCustomBoards] = useState<Board[]>([]);
   const [hoveredBoard, setHoveredBoard] = useState<Board | null>(null);
+
+  // Active query: user typed query when manual, otherwise the typewriter preview keyword
+  const activeQuery = isManualMode ? searchQuery : typewriterText;
+
+  // Board matching filter for dynamic board highlighting and dimming
+  const checkBoardMatches = (b: Board, q: string) => {
+    if (!q.trim()) return true;
+    const query = q.trim().toLowerCase();
+    return (
+      b.shortcode.toLowerCase().includes(query) ||
+      b.name.toLowerCase().includes(query) ||
+      b.domain.toLowerCase().includes(query) ||
+      b.subCategory.toLowerCase().includes(query) ||
+      (b.tags && b.tags.some((t) => t.toLowerCase().includes(query))) ||
+      (b.description && b.description.toLowerCase().includes(query))
+    );
+  };
+
+  // Automated typewriter animation loop
+  useEffect(() => {
+    if (isManualMode) return;
+
+    let wordIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    let timer: NodeJS.Timeout;
+
+    const tick = () => {
+      const currentWord = TYPEWRITER_KEYWORDS[wordIndex % TYPEWRITER_KEYWORDS.length];
+
+      if (!isDeleting) {
+        charIndex++;
+        setTypewriterText(currentWord.slice(0, charIndex));
+
+        if (charIndex === currentWord.length) {
+          isDeleting = true;
+          timer = setTimeout(tick, 1800);
+          return;
+        }
+        timer = setTimeout(tick, 90);
+      } else {
+        charIndex--;
+        setTypewriterText(currentWord.slice(0, charIndex));
+
+        if (charIndex === 0) {
+          isDeleting = false;
+          wordIndex = (wordIndex + 1) % TYPEWRITER_KEYWORDS.length;
+          timer = setTimeout(tick, 400);
+          return;
+        }
+        timer = setTimeout(tick, 45);
+      }
+    };
+
+    timer = setTimeout(tick, 500);
+    return () => clearTimeout(timer);
+  }, [isManualMode]);
+
+  const handleSearchFocus = () => {
+    if (!isManualMode) {
+      setIsManualMode(true);
+      setTypewriterText("");
+      setSearchQuery("");
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isManualMode) {
+      setIsManualMode(true);
+      setTypewriterText("");
+    }
+    setSearchQuery(e.target.value);
+  };
 
   // Modal: Create Custom Board
   const [isNewBoardOpen, setIsNewBoardOpen] = useState(false);
@@ -89,15 +179,25 @@ export default function HomePage() {
     loadBoards();
   }, []);
 
-  // Permanent default to primary board categories ("default"), or dynamic search filter
+  // Permanent default to primary board categories ("default")
   const dualResult: DualSearchResult = useMemo(() => {
-    return executeDualSearch(searchQuery, "default", customBoards);
-  }, [searchQuery, customBoards]);
+    return executeDualSearch("", "default", customBoards);
+  }, [customBoards]);
+
+  // Total matching boards across all categories
+  const matchingBoardCount = useMemo(() => {
+    if (!activeQuery.trim()) return allBoards.length;
+    return allBoards.filter((b) => checkBoardMatches(b, activeQuery)).length;
+  }, [activeQuery]);
 
   const activeHeroBoard = useMemo(() => {
     if (hoveredBoard) return hoveredBoard;
+    if (activeQuery.trim()) {
+      const match = allBoards.find((b) => checkBoardMatches(b, activeQuery));
+      if (match) return match;
+    }
     return allBoards.find((b) => b.shortcode === "vibe") || allBoards[0];
-  }, [hoveredBoard]);
+  }, [hoveredBoard, activeQuery]);
 
   // Flattened visible boards for top/bottom bracketed global nav
   const visibleBoards = useMemo(() => {
@@ -302,11 +402,86 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* MINIMALIST CENTERED TYPEWRITER SEARCH BAR */}
+        <div className="w-full max-w-sm sm:max-w-md mx-auto my-2 sm:my-3 flex flex-col items-center">
+          <div className="relative w-full flex items-center justify-center">
+            <Search className="h-4 w-4 opacity-40 mr-2 shrink-0 pointer-events-none" />
+
+            <div className="relative flex-1 flex items-center justify-center">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={isManualMode ? searchQuery : ""}
+                placeholder={isManualMode ? "Type to search boards..." : ""}
+                onFocus={handleSearchFocus}
+                onClick={handleSearchFocus}
+                onChange={handleSearchChange}
+                className="w-full bg-transparent border-b border-current/25 focus:border-current/70 py-1 px-1 text-center text-sm font-mono outline-none transition-colors placeholder:opacity-35"
+              />
+
+              {/* Typewriter Display when NOT in manual mode */}
+              {!isManualMode && (
+                <div
+                  onClick={handleSearchFocus}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-text text-sm font-mono select-none"
+                >
+                  <span className="opacity-40 mr-1.5">search:</span>
+                  <span className="font-semibold text-current">{typewriterText}</span>
+                  {/* Flashing text cursor */}
+                  <span className="inline-block w-1.5 h-4 bg-current opacity-80 ml-0.5 animate-pulse" />
+                </div>
+              )}
+
+              {/* Clear button when in manual mode */}
+              {isManualMode && searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-1 text-xs opacity-50 hover:opacity-100 cursor-pointer"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search status / hint / restart demo */}
+          <div className="h-4 mt-1 text-[10px] font-mono opacity-50 flex items-center gap-2">
+            {activeQuery.trim() ? (
+              <span>
+                {matchingBoardCount} matching board{matchingBoardCount === 1 ? "" : "s"}
+                {isManualMode ? " (manual)" : " (typewriter preview)"}
+              </span>
+            ) : (
+              <span className="opacity-40">click to search directory</span>
+            )}
+            {isManualMode && (
+              <button
+                onClick={() => {
+                  setIsManualMode(false);
+                  setSearchQuery("");
+                }}
+                className="underline hover:opacity-100 cursor-pointer text-[9.5px]"
+              >
+                [restart typewriter]
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* 3. THE BOARDS DIRECTORY BOX */}
         <div className={`border rounded-[3px] shadow-2xs overflow-hidden ${themeStyles.boxBorder}`}>
           {/* Box Header Bar */}
           <div className={`py-1.5 px-3 flex items-center justify-between text-xs sm:text-sm font-bold uppercase tracking-wide ${themeStyles.boxHeader}`}>
-            <span>Boards — Directory</span>
+            <span>
+              Boards — Directory
+              {activeQuery.trim() && (
+                <span className="ml-2 font-mono font-normal text-[10px] opacity-70 lowercase">
+                  (filter: &ldquo;{activeQuery}&rdquo;)
+                </span>
+              )}
+            </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsNewBoardOpen(true)}
@@ -321,50 +496,17 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Minimal Controls Bar */}
-          <div className={`p-2 sm:px-3 text-xs flex items-center justify-end gap-2 border-b border-current/10 ${themeStyles.subHeader}`}>
-            <div className="flex items-center gap-1.5 w-full sm:w-auto">
-              <label htmlFor="board-filter" className="text-[11px] font-mono opacity-70 whitespace-nowrap">
-                Search:
-              </label>
-              <div className="relative flex-1 sm:w-56">
-                <input
-                  id="board-filter"
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter boards..."
-                  className={`w-full border rounded-[2px] px-2 py-0.5 text-xs outline-none font-mono ${themeStyles.inputBg}`}
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] opacity-60 hover:opacity-100"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Category Columns */}
           <div className="p-3 sm:p-5">
             {dualResult.categories.length === 0 ? (
               <div className="py-12 text-center text-xs opacity-60 space-y-2">
-                <p>No boards found matching &quot;{searchQuery}&quot;.</p>
+                <p>No boards found.</p>
                 <div className="flex justify-center gap-3 pt-2">
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="underline text-[11px] cursor-pointer"
-                  >
-                    Clear search query
-                  </button>
                   <button
                     onClick={() => setIsNewBoardOpen(true)}
                     className="underline font-bold text-[11px] cursor-pointer text-[#1DA1F2]"
                   >
-                    Create /{searchQuery.toLowerCase().replace(/[^a-z0-9]/g, "")}/ board!
+                    Create new board!
                   </button>
                 </div>
               </div>
@@ -380,23 +522,43 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    {/* Board List */}
+                    {/* Board List with Dynamic Highlighting */}
                     <ul className="space-y-0.5 text-xs leading-tight">
-                      {cat.boards.map((b) => (
-                        <li key={b.id}>
-                          <Link
-                            href={`/catalog?b=${b.shortcode}`}
-                            onMouseEnter={() => setHoveredBoard(b)}
-                            className={`group flex items-baseline gap-1 py-0.5 transition-colors ${themeStyles.boardLink}`}
-                            title={`/${b.shortcode}/ - ${b.name}\n${b.description}`}
-                          >
-                            <span className="font-semibold">{b.name}</span>
-                            <span className="text-[10px] font-mono opacity-50 group-hover:opacity-90">
-                              /{b.shortcode}/
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
+                      {cat.boards.map((b) => {
+                        const isMatching = checkBoardMatches(b, activeQuery);
+                        const hasActiveFilter = Boolean(activeQuery.trim());
+
+                        return (
+                          <li key={b.id}>
+                            <Link
+                              href={`/catalog?b=${b.shortcode}`}
+                              onMouseEnter={() => setHoveredBoard(b)}
+                              className={`group flex items-baseline gap-1 py-0.5 transition-all duration-200 ${
+                                themeStyles.boardLink
+                              } ${
+                                hasActiveFilter
+                                  ? isMatching
+                                    ? "opacity-100 font-bold scale-[1.01] drop-shadow-xs"
+                                    : "opacity-25 blur-[0.25px] hover:opacity-75 hover:blur-none"
+                                  : "opacity-100"
+                              }`}
+                              title={`/${b.shortcode}/ - ${b.name}\n${b.description}`}
+                            >
+                              <span className={hasActiveFilter && isMatching ? "underline decoration-current" : "font-semibold"}>
+                                {b.name}
+                              </span>
+                              <span className="text-[10px] font-mono opacity-50 group-hover:opacity-90">
+                                /{b.shortcode}/
+                              </span>
+                              {hasActiveFilter && isMatching && (
+                                <span className="text-[8px] font-mono px-1 rounded-xs bg-current/10 ml-auto shrink-0">
+                                  match
+                                </span>
+                              )}
+                            </Link>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}
